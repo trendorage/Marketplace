@@ -1,0 +1,8 @@
+echo "---CHECK LINT---"
+npm run lint
+
+echo "---BUILD PROJECT---"
+npm run build
+
+echo "---RUN TESTS---"
+npm run test
