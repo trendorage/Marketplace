@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 echo "---CHECK LINT---"
 npm run lint
 
