@@ -1,6 +1,8 @@
 import { Geist_Mono, Inter } from 'next/font/google';
 import { type ReactNode } from 'react';
 
+import { ThemeProvider } from '@/shared/providers/theme-provider';
+
 import type { Metadata } from 'next';
 
 import './globals.css';
@@ -27,8 +29,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="en"
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col" suppressHydrationWarning>{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

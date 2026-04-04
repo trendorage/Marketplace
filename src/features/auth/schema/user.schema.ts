@@ -4,13 +4,16 @@ const UserSchema = new Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    passwordHash: { type: String, required: true },
+    passwordHash: { type: String, required: false, default: '' },
     avatar: { type: String, required: false },
+    role: { type: String, enum: ['user', 'admin'], default: 'user', required: true },
   },
   { timestamps: true }
 );
 
-export type UserDocument = InferSchemaType<typeof UserSchema>;
+export type UserDocument = InferSchemaType<typeof UserSchema> & {
+  _id: mongoose.Types.ObjectId;
+};
 
 export const UserModel =
   mongoose.models.User || mongoose.model('User', UserSchema);

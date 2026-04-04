@@ -91,6 +91,8 @@ src/
 │   ├── providers/
 │   │   ├── session-provider.tsx          # NextAuth SessionProvider wrapper
 │   │   └── store-provider.tsx            # All Zustand store contexts
+│   ├── const/
+│   │   └── home.const.ts                 # Static constants and arrays
 │   ├── types/
 │   │   ├── common.ts                     # ServiceResult<T> and shared types
 │   │   └── http-method.ts

@@ -1,35 +1,45 @@
+import { UserDocument, UserModel } from '@/features/auth/schema/user.schema';
 import { mongo } from '@/shared/lib/mongo';
 
-import { UserModel, UserDocument } from '../schema/user.schema';
-
 export const userRepository = {
-  async findById(id: string) {
+  async findById(id: string): Promise<UserDocument | null> {
     await mongo.connect();
-    return UserModel.findById(id).lean();
+    return UserModel.findById(id).lean()
   },
-  async findByEmail(email: string) {
+
+  async findByEmail(email: string): Promise<UserDocument | null> {
     await mongo.connect();
-    return UserModel.findOne({ email }).lean();
+    return UserModel.findOne({ email }).lean()
   },
-  async findAll(page = 1, limit = 20) {
+
+  async findAll(page = 1, limit = 20): Promise<{ items: UserDocument[] }> {
     await mongo.connect();
     const skip = (page - 1) * limit;
-    const items = await UserModel.find().skip(skip).limit(limit).lean();
+    const items = await UserModel.find({}, null, { skip, limit }).lean();
     return { items };
   },
+
   async create(data: Omit<UserDocument, '_id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     await mongo.connect();
     const doc = await UserModel.create(data);
     return doc._id.toString();
   },
+
   async updateById(id: string, data: Partial<UserDocument>): Promise<boolean> {
     await mongo.connect();
-    const result = await UserModel.updateOne({ _id: id }, { $set: data });
-    return result.modifiedCount > 0;
+    const result = await UserModel.findByIdAndUpdate(id, { $set: data });
+    return result !== null;
   },
+
+  async updateByEmail(email: string, data: Partial<UserDocument>): Promise<boolean> {
+    await mongo.connect();
+    const result = await UserModel.updateOne({ email }, { $set: data });
+    return result.matchedCount > 0;
+  },
+
   async deleteById(id: string): Promise<boolean> {
     await mongo.connect();
-    const result = await UserModel.deleteOne({ _id: id });
-    return result.deletedCount > 0;
+    const result = await UserModel.findByIdAndDelete(id);
+    return result !== null;
   },
 };

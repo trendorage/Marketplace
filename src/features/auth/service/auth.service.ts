@@ -1,10 +1,9 @@
 import { createHash } from 'crypto';
 
+import { userRepository } from '@/features/auth/repository/user.repository';
+import { User } from '@/features/auth/types/auth.types';
+import { LoginType, SignUpType } from '@/features/auth/validations/auth.validation';
 import { ServiceResult } from '@/shared/types/common';
-
-import { userRepository } from '../repository/user.repository';
-import { User } from '../types/auth.types';
-import { LoginType, SignUpType } from '../validations/auth.validation';
 
 function hashPassword(password: string): string {
   return createHash('sha256').update(password).digest('hex');
@@ -20,6 +19,7 @@ export async function registerService(
     name: input.fullName,
     email: input.email,
     passwordHash: hashPassword(input.password),
+    role: 'user',
   });
 
   return { data: { message: 'Account created' }, status: 201 };
@@ -29,11 +29,18 @@ export async function loginService(input: LoginType): Promise<ServiceResult<User
   const user = await userRepository.findByEmail(input.email);
   if (!user) return { data: { error: 'NOT_FOUND' }, status: 404 };
 
+  const passwordHash = hashPassword(input.password);
+  if (user.passwordHash !== passwordHash) {
+    return { data: { error: 'INVALID_CREDENTIALS' }, status: 401 };
+  }
+
   return {
     data: {
-      id: (user as { _id: { toString: () => string } } & typeof user)._id.toString(),
-      email: user.email,
+      id: user._id.toString(),
       name: user.name,
+      email: user.email,
+      role: user.role as 'user' | 'admin',
+      avatar: user.avatar ?? undefined,
     },
     status: 200,
   };
@@ -45,10 +52,35 @@ export async function getUserByIdService(id: string): Promise<ServiceResult<User
 
   return {
     data: {
-      id: (user as { _id: { toString: () => string } } & typeof user)._id.toString(),
-      email: user.email,
+      id: user._id.toString(),
       name: user.name,
+      email: user.email,
+      role: user.role as 'user' | 'admin',
+      avatar: user.avatar ?? undefined,
     },
     status: 200,
   };
+}
+
+export async function upsertOAuthUserService(data: {
+  email: string;
+  name: string;
+  avatar: string | null;
+}): Promise<{ isNew: boolean }> {
+  const existing = await userRepository.findByEmail(data.email);
+  if (existing) {
+    await userRepository.updateByEmail(data.email, {
+      name: data.name,
+      avatar: data.avatar ?? undefined,
+    });
+    return { isNew: false };
+  }
+  await userRepository.create({
+    name: data.name,
+    email: data.email,
+    passwordHash: '',
+    role: 'user',
+    avatar: data.avatar ?? undefined,
+  });
+  return { isNew: true };
 }

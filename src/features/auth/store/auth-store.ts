@@ -1,11 +1,10 @@
 import { createStore } from 'zustand/vanilla';
 
-import { AuthState, AuthStore } from '../types/auth.types';
+import { AuthState, AuthStore } from '@/features/auth/types/auth.types';
 
 export const createAuthStore = (initState: Partial<AuthState> = {}) => {
   const DEFAULT_STATE: AuthState = {
     user: null,
-    csrfToken: null,
     loading: false,
     error: null,
   };
@@ -14,7 +13,6 @@ export const createAuthStore = (initState: Partial<AuthState> = {}) => {
     ...DEFAULT_STATE,
     ...initState,
     setUser: (user) => set({ user }),
-    setCsrfToken: (token) => set({ csrfToken: token }),
     setLoading: (loading) => set({ loading }),
     setError: (error) => set({ error }),
   }));

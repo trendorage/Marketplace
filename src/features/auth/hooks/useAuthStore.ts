@@ -14,11 +14,9 @@ export const useAuthStore = () => {
     store,
     useShallow((state: AuthStoreType) => ({
       user: state.user,
-      csrfToken: state.csrfToken,
       loading: state.loading,
       error: state.error,
       setUser: state.setUser,
-      setCsrfToken: state.setCsrfToken,
       setLoading: state.setLoading,
       setError: state.setError,
     }))

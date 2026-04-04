@@ -1,11 +1,29 @@
 'use client';
 import { signIn, getSession } from 'next-auth/react';
 
-import { useAuthStore } from './useAuthStore';
-import { LoginType } from '../validations/auth.validation';
+import { useAuthStore } from '@/features/auth/hooks/useAuthStore';
+import { User } from '@/features/auth/types/auth.types';
+import { LoginType } from '@/features/auth/validations/auth.validation';
+
 
 export const useLogin = () => {
   const { setUser, setLoading, setError } = useAuthStore();
+
+  const handleSession = async (setUserFn: typeof setUser) => {
+    const session = await getSession();
+    const sessionUser = session?.user as User | undefined;
+    if (!sessionUser) return;
+
+    setUserFn({
+      id: sessionUser.id ?? '',
+      name: sessionUser.name ?? '',
+      email: sessionUser.email ?? '',
+      role: sessionUser.role ?? 'user',
+      avatar: sessionUser.avatar ?? '',
+    });
+
+    window.location.href = sessionUser.role === 'admin' ? '/dashboard' : '/';
+  };
 
   const login = async (data: LoginType) => {
     setLoading(true);
@@ -19,16 +37,11 @@ export const useLogin = () => {
 
       if (result?.error) {
         setError('Invalid email or password');
-      } else if (result?.ok) {
-        const session = await getSession();
-        if (session?.user) {
-          setUser({
-            id: session.user.id as string,
-            name: session.user.name ?? '',
-            email: session.user.email ?? '',
-          });
-        }
-        window.location.href = '/dashboard';
+        return;
+      }
+
+      if (result?.ok) {
+        await handleSession(setUser);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');

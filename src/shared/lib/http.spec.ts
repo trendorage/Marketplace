@@ -55,6 +55,32 @@ describe('HttpClient', () => {
     await expect(client.get('/missing')).rejects.toThrow('NOT_FOUND');
   });
 
+  it('calls onUnauthorized and throws on 401', async () => {
+    const onUnauthorized = vi.fn();
+    const guardedClient = new HttpClient({ baseUrl: 'https://api.example.com', onUnauthorized });
+    mockFetch.mockResolvedValueOnce(makeResponse({ error: 'UNAUTHORIZED' }, 401));
+    await expect(guardedClient.get('/protected')).rejects.toThrow('UNAUTHORIZED');
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+  });
+
+  it('does not call onUnauthorized on other errors', async () => {
+    const onUnauthorized = vi.fn();
+    const guardedClient = new HttpClient({ baseUrl: 'https://api.example.com', onUnauthorized });
+    mockFetch.mockResolvedValueOnce(makeResponse({ error: 'FORBIDDEN' }, 403));
+    await expect(guardedClient.get('/protected')).rejects.toThrow();
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('accepts options object with baseUrl', async () => {
+    const optionsClient = new HttpClient({ baseUrl: 'https://dummyjson.com' });
+    mockFetch.mockResolvedValueOnce(makeResponse({ users: [] }));
+    await optionsClient.get('/users');
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://dummyjson.com/users',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
   it('PUT sends body', async () => {
     mockFetch.mockResolvedValueOnce(makeResponse({ updated: true }));
     const result = await client.put('/users/1', { name: 'Bob' });

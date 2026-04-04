@@ -1,10 +1,9 @@
 'use client';
 import { useRouter } from 'next/navigation';
 
+import { useAuthStore } from '@/features/auth/hooks/useAuthStore';
+import { SignUpType } from '@/features/auth/validations/auth.validation';
 import { http } from '@/shared/lib/http';
-
-import { useAuthStore } from './useAuthStore';
-import { SignUpType } from '../validations/auth.validation';
 
 export const useRegister = () => {
   const { setLoading, setError } = useAuthStore();

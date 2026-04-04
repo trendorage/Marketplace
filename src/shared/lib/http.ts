@@ -10,11 +10,22 @@ type HttpError = {
   status: number;
 };
 
+type HttpClientOptions = {
+  baseUrl?: string;
+  onUnauthorized?: () => void;
+};
+
 class HttpClient {
   private baseUrl: string;
+  private onUnauthorized?: () => void;
 
-  constructor(baseUrl = '') {
-    this.baseUrl = baseUrl;
+  constructor(options: HttpClientOptions | string = '') {
+    if (typeof options === 'string') {
+      this.baseUrl = options;
+    } else {
+      this.baseUrl = options.baseUrl ?? '';
+      this.onUnauthorized = options.onUnauthorized;
+    }
   }
 
   private serializeParams(params?: Record<string, string | number | boolean | undefined>): string {
@@ -41,10 +52,7 @@ class HttpClient {
       ...options?.headers,
     };
 
-    const init: RequestInit = {
-      method,
-      headers,
-    };
+    const init: RequestInit = { method, headers };
 
     if (body !== undefined) {
       init.body = JSON.stringify(body);
@@ -53,6 +61,10 @@ class HttpClient {
     const response = await fetch(url, init);
 
     if (!response.ok) {
+      if (response.status === 401) {
+        this.onUnauthorized?.();
+      }
+
       let message = response.statusText;
       try {
         const errorData = await response.json();
@@ -92,4 +104,5 @@ class HttpClient {
 }
 
 export const http = new HttpClient('/api');
+
 export { HttpClient };
