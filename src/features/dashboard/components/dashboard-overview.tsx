@@ -1,53 +1,33 @@
-import {
-  Activity,
-  Clock,
-  TrendingUp,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
-
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
-import { DASHBOARD_METRICS, type DashboardMetric } from '@/shared/const/dashboard.const';
-
-const DASHBOARD_ICON_MAP: Record<DashboardMetric['icon'], LucideIcon> = {
-  activity: Activity,
-  clock: Clock,
-  'trending-up': TrendingUp,
-  users: Users,
-};
+'use client';
+import { CategoryStats } from '@/features/dashboard/components/category-stats';
+import { KpiCards } from '@/features/dashboard/components/kpi-cards';
+import { RecentOrdersTable } from '@/features/dashboard/components/recent-orders-table';
+import { RevenueChart } from '@/features/dashboard/components/revenue-chart';
+import { TopProductsTable } from '@/features/dashboard/components/top-products-table';
 
 type DashboardOverviewProps = {
   userName: string;
 };
 
-export const DashboardOverview = ({ userName }: DashboardOverviewProps) => {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Welcome back, {userName}</h1>
-        <p className="mt-1 text-muted-foreground">
-          Here is an overview of your application metrics.
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {DASHBOARD_METRICS.map(({ title, value, description, icon }) => {
-          const Icon = DASHBOARD_ICON_MAP[icon];
-
-          return (
-            <Card key={title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
-                <p className="text-xs text-muted-foreground">{description}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+export const DashboardOverview = ({ userName }: DashboardOverviewProps) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-xl font-bold text-foreground">გამარჯობა, {userName} 👋</h2>
+      <p className="mt-0.5 text-sm text-muted-foreground">Trendora Marketplace — ადმინ პანელი</p>
     </div>
-  );
-};
+
+    <KpiCards />
+
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="lg:col-span-2">
+        <RevenueChart />
+      </div>
+      <CategoryStats />
+    </div>
+
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <RecentOrdersTable />
+      <TopProductsTable />
+    </div>
+  </div>
+);

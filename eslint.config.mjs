@@ -67,6 +67,19 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    files: ["**/components/ui/**"],
+    rules: {
+      "max-lines": "off",
+      "max-len": "off",
+    },
+  },
+  {
+    files: ["**/const/**", "**/dashboard/**"],
+    rules: {
+      "max-lines": "off",
+    },
+  },
+  {
     files: ['**/mongo.{ts,tsx}', '**/redis.{ts,tsx}', '**/catch-async.{ts,tsx}'],
     rules: {
       "no-console": "off",
