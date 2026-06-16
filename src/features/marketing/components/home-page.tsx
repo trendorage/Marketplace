@@ -121,7 +121,7 @@ export const HomePage = () => {
         <section className="border-b border-border py-6 sm:py-10">
           <div className="mx-auto max-w-7xl px-4 sm:px-10">
             <SectionHeader title="პოპულარული პროდუქტები" href="/products" />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
               {POPULAR_PRODUCTS.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
@@ -133,7 +133,7 @@ export const HomePage = () => {
         <section className="border-b border-border bg-muted/20 py-6 sm:py-10">
           <div className="mx-auto max-w-7xl px-4 sm:px-10">
             <SectionHeader title="ფასდაკლებები" href="/sale" />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
               {SALE_PRODUCTS.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}

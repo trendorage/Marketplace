@@ -55,7 +55,7 @@ export const ProductCard = ({ product }: ProductCardProps) => {
       </Link>
 
       {/* Info */}
-      <div className="flex flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3">
+      <div className="flex flex-1 flex-col gap-1.5 p-2.5 sm:gap-2 sm:p-3">
         <Link
           href={`/products/${product.id}`}
           className="line-clamp-2 text-xs font-medium text-foreground transition-colors hover:text-primary sm:text-sm"
@@ -83,8 +83,8 @@ export const ProductCard = ({ product }: ProductCardProps) => {
             size="sm"
             className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            <ShoppingCart className="size-3.5 sm:mr-1.5" />
-            <span className="hidden sm:inline">კალათაში დამატება</span>
+            <ShoppingCart className="size-3.5 mr-1.5" />
+            კალათაში
           </Button>
           <button
             type="button"

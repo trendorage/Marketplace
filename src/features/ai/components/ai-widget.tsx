@@ -85,13 +85,17 @@ export const AiWidget = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
       {/* Chat panel */}
       {open && (
-        <div className="flex h-[500px] w-80 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:w-96">
+        <div
+          className="flex h-[70vh] max-h-[500px] min-h-[320px] flex-col overflow-hidden
+            rounded-2xl border border-border bg-card shadow-2xl
+            w-[calc(100vw-2rem)] sm:w-96"
+        >
           {/* Header */}
           <div className="flex items-center gap-3 border-b border-border bg-secondary px-4 py-3">
-            <div className="flex size-8 items-center justify-center rounded-full bg-primary">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary">
               <Bot className="size-4 text-primary-foreground" />
             </div>
             <div className="flex-1">
@@ -100,20 +104,22 @@ export const AiWidget = () => {
             </div>
             <button
               onClick={() => setOpen(false)}
-              className="rounded-md p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex size-8 items-center justify-center rounded-md
+                text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="დახურვა"
             >
               <X className="size-4" />
             </button>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto space-y-3 p-4">
+          <div className="flex-1 overflow-y-auto space-y-3 p-3 sm:p-4">
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
                 <Bot className="size-10 text-primary/30" />
                 <p className="text-xs font-medium text-foreground">როგორ შეგვიძლია დაგეხმაროთ?</p>
                 <p className="text-xs text-muted-foreground">
-                  დასვით შეკითხვა პროდუქტებზე, შეკვეთებზე ან სხვა საკითხებზე.
+                  დასვით შეკითხვა პროდუქტებზე ან შეკვეთებზე.
                 </p>
               </div>
             )}
@@ -128,7 +134,7 @@ export const AiWidget = () => {
                   </div>
                 )}
                 <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
+                  className={`max-w-[78%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
                     msg.role === 'user'
                       ? 'bg-primary text-primary-foreground rounded-br-sm'
                       : 'bg-muted text-foreground rounded-bl-sm'
@@ -159,15 +165,16 @@ export const AiWidget = () => {
                 onKeyDown={onKey}
                 placeholder="შეტყობინება..."
                 disabled={loading}
-                className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs outline-none focus:border-primary disabled:opacity-50"
+                className="h-11 flex-1 rounded-xl border border-border bg-background
+                  px-3 text-sm outline-none focus:border-primary disabled:opacity-50"
               />
               <button
                 onClick={send}
                 disabled={loading || !input.trim()}
-                className="flex size-8 shrink-0 items-center justify-center rounded-xl
+                className="flex size-11 shrink-0 items-center justify-center rounded-xl
                   bg-primary text-primary-foreground transition-opacity disabled:opacity-40"
               >
-                <Send className="size-3.5" />
+                <Send className="size-4" />
               </button>
             </div>
           </div>
@@ -178,7 +185,8 @@ export const AiWidget = () => {
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex size-14 items-center justify-center rounded-full
-          bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+          bg-primary text-primary-foreground shadow-lg transition-transform
+          hover:scale-105 active:scale-95"
         aria-label="AI ასისტენტი"
       >
         {open ? <X className="size-6" /> : <Bot className="size-6" />}

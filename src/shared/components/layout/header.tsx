@@ -103,7 +103,7 @@ export const Header = () => {
           <button
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="მენიუ"
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white sm:hidden"
+            className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white sm:hidden"
           >
             {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
@@ -168,7 +168,7 @@ export const Header = () => {
                 key={cat.key}
                 href={cat.href}
                 onClick={close}
-                className="block px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                className="block px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
               >
                 {cat.label}
               </Link>
