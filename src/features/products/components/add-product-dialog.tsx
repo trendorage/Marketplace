@@ -1,6 +1,7 @@
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { Loader2, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { CreateProductSchema, CreateProductType } from '@/features/products/validations/product.validation';
@@ -46,12 +47,35 @@ type Props = {
 
 export const AddProductDialog = ({ open, onOpenChange, onSuccess }: Props) => {
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<CreateProductType>({
     resolver: zodResolver(CreateProductSchema),
     defaultValues: { name: '', price: 0, stock: 0, category: '', status: 'draft', image: '' },
   });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/products/upload', { method: 'POST', body: fd });
+      const data = await res.json() as { url?: string; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'upload failed');
+      form.setValue('image', data.url ?? '', { shouldValidate: true });
+    } catch {
+      setUploadError('ატვირთვა ვერ მოხდა');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const onSubmit = async (data: CreateProductType) => {
     setSubmitting(true);
@@ -67,6 +91,8 @@ export const AddProductDialog = ({ open, onOpenChange, onSuccess }: Props) => {
       setSubmitting(false);
     }
   };
+
+  const imageValue = form.watch('image');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -151,49 +177,81 @@ export const AddProductDialog = ({ open, onOpenChange, onSuccess }: Props) => {
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>სტატუსი</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {STATUS_OPTIONS.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="image"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>სურათი (URL)</FormLabel>
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>სტატუსი</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <Input placeholder="https://..." {...field} />
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="image"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>სურათი</FormLabel>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input placeholder="https://... ან ატვირთე ფაილი" {...field} />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        title="ატვირთე კომპიუტერიდან"
+                      >
+                        {uploading
+                          ? <Loader2 className="size-4 animate-spin" />
+                          : <Upload className="size-4" />}
+                      </Button>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                    {uploadError && (
+                      <p className="text-xs text-destructive">{uploadError}</p>
+                    )}
+                    {imageValue && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={imageValue}
+                        alt="preview"
+                        className="h-20 w-20 rounded-md border border-border object-cover"
+                      />
+                    )}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             {error && <p className="text-sm text-destructive">{error}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 გაუქმება
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting || uploading}>
                 {submitting ? 'ინახება...' : 'დამატება'}
               </Button>
             </DialogFooter>

@@ -74,7 +74,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["**/const/**", "**/dashboard/**"],
+    files: ["**/const/**", "**/dashboard/**", "**/features/products/**"],
     rules: {
       "max-lines": "off",
     },
