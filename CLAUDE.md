@@ -16,10 +16,25 @@ npm run build
 npm run lint:fix
 npm run typecheck
 npm run test:run
-npx vitest run src/features/auth/service/auth.service.spec.ts
+npx vitest run src/features/auth/service/auth.service.spec.ts   # single test file
 ```
 
 Husky pre-commit: `lint → build → test` — ერთი ჩავარდნა = commit დაბლოკილი.
+
+## Environment Variables
+
+`.env.local` (gitignored):
+```
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=<secret>
+MONGO_URI=mongodb+srv://...
+SEED_EMAIL=...
+SEED_PASSWORD=...
+GOOGLE_CLIENT_ID=...       # optional — Google OAuth გამორთულია თუ არ არის
+GOOGLE_CLIENT_SECRET=...
+```
+
+Vercel-ზე: `AUTH_SECRET` (v5 primary), `MONGO_URI` **production + preview + development** targets-ზე. `MONGO_URI` development-only → production-ში auth `Configuration` error.
 
 ## Request Flow
 
@@ -30,12 +45,31 @@ Client → http.post('/api/...', body)        # singleton @ src/shared/lib/http.
   → Repository: mongo.connect() + query     # ერთადერთი Mongoose ფენა
 ```
 
-`ServiceResult<T>` — `src/shared/types/common.ts`. Service ყოველთვის აბრუნებს `{ data, status }`, არასოდეს throws.
+`ServiceResult<T>` — `src/shared/types/common.ts`:
+```ts
+type ServiceResult<T> = { data: T | { error: string }; status: number };
+```
+Error check: `'error' in data`. Service არასოდეს throws.
+
+## Route Groups
+
+```
+src/app/
+  layout.tsx                   — root layout (fonts only)
+  (public)/layout.tsx          — SessionProvider + StoreProvider + Header/Footer
+  (public)/page.tsx            — home
+  (public)/sign-in/page.tsx
+  (public)/sign-up/page.tsx
+  (protected)/layout.tsx       — auth() server-side check → admin only → DashboardShell
+  (protected)/dashboard/...    — 10 dashboard pages
+```
+
+`(protected)/layout.tsx` double-check: `auth()` → `role === 'admin'` → redirect `/`. Edge middleware (`proxy.ts`) does cookie-only pre-check.
 
 ## Auth
 
 - JWT sessions — NextAuth v5 (`src/shared/lib/auth.ts`)
-- Google OAuth + Credentials provider
+- Google OAuth provider — conditional init (crashes if env vars absent)
 - SHA-256 password (`src/shared/utils/password.ts`) — არა bcrypt
 - `jwt` callback — **ყოველ** request-ზე DB query (`role`/`avatar` სინქრონი)
 - OAuth upsert — `upsertOAuthUserService`; `passwordHash: ''`
@@ -43,17 +77,15 @@ Client → http.post('/api/...', body)        # singleton @ src/shared/lib/http.
   ```ts
   type SessionUser = { id: string; role: 'admin' | 'user'; avatar?: string | null };
   ```
+- Login hook — `signIn('credentials', { redirect: false })` → `getSession()` → `window.location.href`
 
 ## Middleware
 
-`src/proxy.ts` = Edge middleware (cookie check, redirects). გასააქტიურებლად:
+`src/proxy.ts` = Edge middleware (cookie check, redirects). გასააქტიურებლად შევქმნათ `src/middleware.ts`:
 ```ts
-// src/middleware.ts
 export { proxy as default, config } from '@/proxy';
 ```
-`proxy.ts`-ში DB/Node imports აკრძალულია — Edge runtime.
-
-`(protected)/layout.tsx` — server-side double-check: `auth()` + `role === 'admin'` → redirect. ორივე route group-ს აქვს `SessionProvider + StoreProvider`.
+`proxy.ts`-ში DB/Node imports აკრძალულია — Edge runtime. Cookie names: `authjs.session-token` / `__Secure-authjs.session-token`.
 
 ## UI / Styling
 
@@ -64,7 +96,7 @@ Tailwind v4 + shadcn/ui. ფერები OKLCh CSS vars (`src/app/globals.css
 
 Header 3-row: utility bar (desktop only) → logo+search → category nav (19 კატეგორია scrollable).
 Mobile: hamburger → auth buttons + category list (`max-h-72 overflow-y-auto`).
-Logo component: `src/shared/components/layout/logo.tsx` — SVG cart + TRENDORA text. გამოიყენება header და footer-ში.
+Logo: `src/shared/components/layout/logo.tsx` — SVG cart + TRENDORA text. Header + footer-ში.
 `scrollbar-hide` utility defined in `globals.css`.
 
 ## ფაილების სტრუქტურა
@@ -74,20 +106,25 @@ src/features/<feature>/
   schema/        Mongoose schema + InferSchemaType
   repository/    mongo.connect() + raw queries only
   service/       ბიზნეს ლოგიკა → ServiceResult<T>
-  store/         Zustand vanilla store
+  store/         Zustand vanilla store (createStore)
   hooks/         useXStore.ts + use-action.ts — ცალ-ცალკე
   components/    feature UI
   validations/   Zod schemas + inferred types
   types/         TypeScript types
 
 src/shared/
-  const/         <name>.const.ts — ყველა static data
-  lib/           singletons (http, mongo, auth) + .spec.ts
+  const/         <name>.const.ts — static data
+  lib/           singletons: http, mongo, auth (+ .spec.ts co-located)
   middleware/    validateBody (Zod → 400)
   types/         ServiceResult<T>, PaginatedResult<T>
+  providers/     SessionProvider, StoreProvider
 ```
 
-Marketplace constants: `home.const.ts` (Product, ServiceProp, placeholder data), `navigation.const.ts` (MARKET_CATEGORIES — 19 items).
+Constants:
+- `src/shared/const/home.const.ts` — Product, ServiceProp, placeholder data
+- `src/shared/const/navigation.const.ts` — MARKET_CATEGORIES (19 items)
+- `src/shared/const/routes.const.ts` — AUTH_ROUTES, PROTECTED_ROUTES
+- `src/features/dashboard/const/dashboard.const.ts` — dashboard charts/tables data
 
 ## წესები
 
@@ -99,7 +136,7 @@ Marketplace constants: `home.const.ts` (Product, ServiceProp, placeholder data),
 
 **Constants:** `src/shared/const/<name>.const.ts`. Page-ში inline data — არა.
 
-**Zustand:** 3 ფაილი — store factory + `useXStore.ts` hook + `store-provider.tsx`.
+**Zustand:** 3 ფაილი — store factory (`createStore`) + `useXStore.ts` hook + `store-provider.tsx`.
 
 **API Routes:** `validateBody` → service → `Response.json()`. Catch → 500.
 
@@ -110,3 +147,5 @@ Marketplace constants: `home.const.ts` (Product, ServiceProp, placeholder data),
 **Naming:** files `kebab-case`, components `PascalCase`, functions `camelCase`, constants `UPPER_SNAKE_CASE`.
 
 **Tests:** `.spec.ts` co-located. Service tests — mock at repository layer: `vi.mock('@/features/.../repository/...')`.
+
+**ESLint:** `**/components/ui/**` და `**/dashboard/**` — `max-lines` off (shadcn + dashboard pages გრძელია).
