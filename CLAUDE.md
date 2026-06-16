@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## პროექტი
 
-**Trendora** (`trendora.ge`) — მარკეტფლეისი. Auth: Google OAuth + Email/Password. ადმინი მართავს პროდუქტებს dashboard-იდან. მომხმარებლები Browse + Cart + Order.
+**Trendora** (`trendora.ge`) — მარკეტფლეისი. Auth: Google OAuth + Email/Password. ადმინი მართავს dashboard-იდან.
 
-დაგეგმილი features: `products`, `categories`, `cart`, `orders`.
+განხორციელებული features: `products`, `categories`, `ai-assistant`.
+დაგეგმილი: `cart`, `orders`.
 
 ## Commands
 
@@ -30,11 +31,14 @@ NEXTAUTH_SECRET=<secret>
 MONGO_URI=mongodb+srv://...
 SEED_EMAIL=...
 SEED_PASSWORD=...
-GOOGLE_CLIENT_ID=...       # optional — Google OAuth გამორთულია თუ არ არის
+GOOGLE_CLIENT_ID=...              # optional — Google OAuth გამორთულია თუ არ არის
 GOOGLE_CLIENT_SECRET=...
+OPENROUTER_API_KEY=...            # AI ასისტენტი — openrouter.ai
+BLOB_READ_WRITE_TOKEN=...         # @vercel/blob — სურათების ატვირთვა (Vercel dashboard-ზე შეიქმნება)
 ```
 
-Vercel-ზე: `AUTH_SECRET` (v5 primary), `MONGO_URI` **production + preview + development** targets-ზე. `MONGO_URI` development-only → production-ში auth `Configuration` error.
+Vercel-ზე: `AUTH_SECRET` (v5 primary), `MONGO_URI` **production + preview + development** targets-ზე.
+`MONGO_URI` development-only → production-ში auth `Configuration` error.
 
 ## Request Flow
 
@@ -55,16 +59,25 @@ Error check: `'error' in data`. Service არასოდეს throws.
 
 ```
 src/app/
-  layout.tsx                   — root layout (fonts only)
-  (public)/layout.tsx          — SessionProvider + StoreProvider + Header/Footer
-  (public)/page.tsx            — home
+  layout.tsx                     — root layout (fonts only)
+  (public)/layout.tsx            — SessionProvider + StoreProvider + AiWidget (floating)
+  (public)/page.tsx              — home
   (public)/sign-in/page.tsx
   (public)/sign-up/page.tsx
-  (protected)/layout.tsx       — auth() server-side check → admin only → DashboardShell
-  (protected)/dashboard/...    — 10 dashboard pages
+  (protected)/layout.tsx         — auth() server-side check → admin only → DashboardShell
+  (protected)/dashboard/         — 12 dashboard pages (products, categories, ai, orders, ...)
+
+src/app/api/
+  products/route.ts              — GET (public list), POST (admin create)
+  products/upload/route.ts       — POST (admin, @vercel/blob upload, 5MB limit)
+  categories/route.ts            — GET (public), POST (admin create), PUT (admin seed defaults)
+  categories/[id]/route.ts       — DELETE (admin)
+  ai/chat/route.ts               — POST (admin-only, SSE stream → OpenRouter)
+  ai/widget/route.ts             — POST (public, SSE stream → OpenRouter, last 10 msgs)
 ```
 
-`(protected)/layout.tsx` double-check: `auth()` → `role === 'admin'` → redirect `/`. Edge middleware (`proxy.ts`) does cookie-only pre-check.
+`(protected)/layout.tsx` double-check: `auth()` → `role === 'admin'` → redirect `/`.
+Edge middleware (`proxy.ts`) does cookie-only pre-check.
 
 ## Auth
 
@@ -85,7 +98,8 @@ src/app/
 ```ts
 export { proxy as default, config } from '@/proxy';
 ```
-`proxy.ts`-ში DB/Node imports აკრძალულია — Edge runtime. Cookie names: `authjs.session-token` / `__Secure-authjs.session-token`.
+`proxy.ts`-ში DB/Node imports აკრძალულია — Edge runtime.
+Cookie names: `authjs.session-token` / `__Secure-authjs.session-token`.
 
 ## UI / Styling
 
@@ -94,10 +108,47 @@ Tailwind v4 + shadcn/ui. ფერები OKLCh CSS vars (`src/app/globals.css
 - `--secondary` = მუქი (`oklch(0.12 0 0)` ≈ `#111111`) — header bg, nav bar
 - `--accent` = ღია coral tint (`oklch(0.90 0.05 20)` ≈ `#FFD2CF`) — hover states
 
-Header 3-row: utility bar (desktop only) → logo+search → category nav (19 კატეგორია scrollable).
+Header 3-row: utility bar (desktop only) → logo+search → category nav.
 Mobile: hamburger → auth buttons + category list (`max-h-72 overflow-y-auto`).
-Logo: `src/shared/components/layout/logo.tsx` — SVG cart + TRENDORA text. Header + footer-ში.
+Logo: `src/shared/components/layout/logo.tsx` — SVG cart + TRENDORA text.
 `scrollbar-hide` utility defined in `globals.css`.
+
+AI widget: `src/features/ai/components/ai-widget.tsx` — `fixed bottom-6 right-6 z-50`, rendered in `(public)/layout.tsx`. Streaming SSE via `/api/ai/widget`.
+
+## Dashboard Sidebar
+
+`src/shared/components/layout/dashboard-sidebar.tsx` — `ICON_MAP` maps string keys → lucide icons.
+`src/features/dashboard/const/dashboard.const.ts` — `DASHBOARD_NAV_SECTIONS` nav items + `DASHBOARD_PAGE_TITLES`.
+
+ახალი sidebar item დასამატებლად:
+1. `ICON_MAP`-ში დაამატე icon (sidebar.tsx)
+2. `DASHBOARD_NAV_SECTIONS`-ში დაამატე `{ href, label, icon }` (dashboard.const.ts)
+3. `DASHBOARD_PAGE_TITLES`-ში დაამატე entry
+
+## Products & Categories
+
+**Products** (`src/features/products/`):
+- `status`: `'active' | 'draft' | 'out_of_stock' | 'pending'`
+- category ველი — `z.string().min(1)`, dynamic from DB with fallback to `MARKET_CATEGORIES`
+- Form number inputs — `z.number()` (არა `z.coerce.number()`) + `onChange={(e) => field.onChange(+e.target.value)}`
+  `z.coerce.number()` causes TS type mismatch with `@hookform/resolvers` v5 + Zod v4.
+
+**Categories** (`src/features/categories/`):
+- DB-ში ინახება (Mongoose). `GET /api/categories` returns empty array if none seeded.
+- `PUT /api/categories` — seeds 19 default `MARKET_CATEGORIES` (skips duplicates).
+- `key` field unique, URL-safe (`/^[a-z0-9-]+$/`).
+- Product form fetches categories from `/api/categories`, falls back to `MARKET_CATEGORIES` const if empty.
+
+## AI Assistant
+
+Model: `nex-agi/nex-n2-pro:free` via OpenRouter.
+
+- `/api/ai/chat` — admin-only, full conversation history
+- `/api/ai/widget` — public, last 10 messages for context
+- System prompt: Georgian-only responses, marketplace topics only, off-topic refusal
+- Streaming: SSE `text/event-stream`, parse `data: {...}` chunks, stop on `[DONE]`
+- `src/features/ai/components/ai-chat.tsx` — dashboard full-page chat
+- `src/features/ai/components/ai-widget.tsx` — public floating widget
 
 ## ფაილების სტრუქტურა
 
@@ -111,26 +162,20 @@ src/features/<feature>/
   components/    feature UI
   validations/   Zod schemas + inferred types
   types/         TypeScript types
-
-src/shared/
-  const/         <name>.const.ts — static data
-  lib/           singletons: http, mongo, auth (+ .spec.ts co-located)
-  middleware/    validateBody (Zod → 400)
-  types/         ServiceResult<T>, PaginatedResult<T>
-  providers/     SessionProvider, StoreProvider
 ```
 
 Constants:
-- `src/shared/const/home.const.ts` — Product, ServiceProp, placeholder data
-- `src/shared/const/navigation.const.ts` — MARKET_CATEGORIES (19 items)
-- `src/shared/const/routes.const.ts` — AUTH_ROUTES, PROTECTED_ROUTES
-- `src/features/dashboard/const/dashboard.const.ts` — dashboard charts/tables data
+- `src/shared/const/home.const.ts` — placeholder product/service data
+- `src/shared/const/navigation.const.ts` — `MARKET_CATEGORIES` (19 items)
+- `src/shared/const/routes.const.ts` — `AUTH_ROUTES`, `PROTECTED_ROUTES`
+- `src/features/dashboard/const/dashboard.const.ts` — KPIs, charts, sidebar nav, page titles
 
 ## წესები
 
 **Types:** `type` ყოველთვის, `interface` არასოდეს. `unknown` cast არასოდეს.
 
-**Styling:** მხოლოდ Tailwind classes. `style={{}}` და arbitrary values (`text-[10px]`) — აკრძალულია. `page.tsx`-ში raw HTML tags (`<header>`, `<footer>`) — არა, components გამოიყენე.
+**Styling:** მხოლოდ Tailwind classes. `style={{}}` და arbitrary values (`text-[10px]`) — აკრძალულია.
+`page.tsx`-ში raw HTML tags (`<header>`, `<footer>`) — არა, components გამოიყენე.
 
 **Imports:** `@/` cross-directory. `./` same folder only.
 
@@ -139,8 +184,17 @@ Constants:
 **Zustand:** 3 ფაილი — store factory (`createStore`) + `useXStore.ts` hook + `store-provider.tsx`.
 
 **API Routes:** `validateBody` → service → `Response.json()`. Catch → 500.
+Admin check pattern:
+```ts
+type SessionUser = { role?: 'admin' | 'user' };
+const session = await auth();
+const user = session?.user as SessionUser | undefined;
+if (!session || user?.role !== 'admin') return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+```
 
 **Repository:** `await mongo.connect()` ყოველ method-ში. `.lean<T>()` reads-ზე.
+
+**Next.js 15+ dynamic params:** Promise-ებია — `{ params }: { params: Promise<{ id: string }> }` → `const { id } = await params`.
 
 **ObjectId validation:** `z.string().min(24).max(24)`.
 
@@ -148,4 +202,7 @@ Constants:
 
 **Tests:** `.spec.ts` co-located. Service tests — mock at repository layer: `vi.mock('@/features/.../repository/...')`.
 
-**ESLint:** `**/components/ui/**` და `**/dashboard/**` — `max-lines` off (shadcn + dashboard pages გრძელია).
+**ESLint overrides** (`eslint.config.mjs`):
+- `max-lines: off` — `**/const/**`, `**/dashboard/**`, `**/features/products/**`, `**/features/categories/**`, `**/features/ai/**`
+- `max-lines: off`, `max-len: off` — `**/components/ui/**`, test files
+- `no-console: off` — `**/mongo.ts`, `**/redis.ts`
