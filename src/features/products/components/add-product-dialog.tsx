@@ -1,7 +1,7 @@
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Upload } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { CreateProductSchema, CreateProductType } from '@/features/products/validations/product.validation';
@@ -39,6 +39,8 @@ const STATUS_OPTIONS = [
   { value: 'out_of_stock', label: 'ამოწურულია' },
 ] as const;
 
+type CategoryOption = { key: string; label: string };
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -50,7 +52,23 @@ export const AddProductDialog = ({ open, onOpenChange, onSuccess }: Props) => {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    http.get<{ categories: { key: string; label: string }[] }>('/categories')
+      .then((res) => {
+        if (res.categories.length > 0) {
+          setCategories(res.categories.map((c) => ({ key: c.key, label: c.label })));
+        } else {
+          setCategories(MARKET_CATEGORIES.map((c) => ({ key: c.key, label: c.label })));
+        }
+      })
+      .catch(() => {
+        setCategories(MARKET_CATEGORIES.map((c) => ({ key: c.key, label: c.label })));
+      });
+  }, [open]);
 
   const form = useForm<CreateProductType>({
     resolver: zodResolver(CreateProductSchema),
@@ -168,7 +186,7 @@ export const AddProductDialog = ({ open, onOpenChange, onSuccess }: Props) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {MARKET_CATEGORIES.map((c) => (
+                      {categories.map((c) => (
                         <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
                       ))}
                     </SelectContent>

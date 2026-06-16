@@ -11,6 +11,7 @@ import {
   Settings,
   ShoppingCart,
   Store,
+  Tag,
   Users,
   X,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   bell: Bell,
   settings: Settings,
   list: List,
+  tag: Tag,
 };
 
 type DashboardSidebarProps = {

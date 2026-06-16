@@ -728,6 +728,7 @@ export const DASHBOARD_NAV_SECTIONS: DashboardSidebarSection[] = [
     items: [
       { href: '/dashboard/orders', label: 'შეკვეთები', icon: 'shopping-cart', badge: 12 },
       { href: '/dashboard/products', label: 'პროდუქტები', icon: 'package' },
+      { href: '/dashboard/categories', label: 'კატეგორიები', icon: 'tag' },
       { href: '/dashboard/sellers', label: 'გამყიდველები', icon: 'store', badge: 2 },
       { href: '/dashboard/users', label: 'მომხმარებლები', icon: 'users' },
     ],
@@ -753,6 +754,7 @@ export const DASHBOARD_PAGE_TITLES: Record<string, string> = {
   '/dashboard/reports': 'ანგარიშები',
   '/dashboard/orders': 'შეკვეთები',
   '/dashboard/products': 'პროდუქტები',
+  '/dashboard/categories': 'კატეგორიები',
   '/dashboard/sellers': 'გამყიდველები',
   '/dashboard/users': 'მომხმარებლები',
   '/dashboard/financial': 'ფინანსები',
