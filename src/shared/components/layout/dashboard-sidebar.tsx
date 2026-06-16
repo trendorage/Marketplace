@@ -2,6 +2,7 @@
 import {
   BarChart2,
   Bell,
+  Bot,
   DollarSign,
   FileText,
   LayoutDashboard,
@@ -35,6 +36,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   settings: Settings,
   list: List,
   tag: Tag,
+  bot: Bot,
 };
 
 type DashboardSidebarProps = {

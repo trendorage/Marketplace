@@ -740,6 +740,12 @@ export const DASHBOARD_NAV_SECTIONS: DashboardSidebarSection[] = [
     ],
   },
   {
+    title: 'AI',
+    items: [
+      { href: '/dashboard/ai', label: 'AI ასისტენტი', icon: 'bot' },
+    ],
+  },
+  {
     title: 'სისტემა',
     items: [
       { href: '/dashboard/notifications', label: 'შეტყობინებები', icon: 'bell', badge: 3 },
@@ -758,6 +764,7 @@ export const DASHBOARD_PAGE_TITLES: Record<string, string> = {
   '/dashboard/sellers': 'გამყიდველები',
   '/dashboard/users': 'მომხმარებლები',
   '/dashboard/financial': 'ფინანსები',
+  '/dashboard/ai': 'AI ასისტენტი',
   '/dashboard/notifications': 'შეტყობინებები',
   '/dashboard/settings': 'პარამეტრები',
 };
