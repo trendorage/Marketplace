@@ -54,6 +54,58 @@ export const orderRepository = {
     return result !== null;
   },
 
+  async getAnalytics(period: '7d' | '30d' | '1y'): Promise<{
+    points: { label: string; revenue: number; orders: number; commission: number }[];
+    categories: { name: string; revenue: number; count: number }[];
+  }> {
+    await mongo.connect();
+    const now = new Date();
+    let start: Date;
+    let groupFormat: string;
+    if (period === '7d') {
+      start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      groupFormat = '%m/%d';
+    } else if (period === '30d') {
+      start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      groupFormat = '%m/%d';
+    } else {
+      start = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+      groupFormat = '%Y-%m';
+    }
+    type RawPoint = { _id: string; revenue: number; orders: number };
+    type RawCat = { _id: string; revenue: number; count: number };
+    const [rawPoints, rawCategories] = await Promise.all([
+      OrderModel.aggregate<RawPoint>([
+        { $match: { createdAt: { $gte: start }, status: { $nin: ['cancelled'] } } },
+        { $group: {
+          _id: { $dateToString: { format: groupFormat, date: '$createdAt' } },
+          revenue: { $sum: '$amount' },
+          orders: { $sum: 1 },
+        } },
+        { $sort: { _id: 1 } },
+      ]),
+      OrderModel.aggregate<RawCat>([
+        { $match: { status: { $nin: ['cancelled', 'refunded'] } } },
+        { $group: { _id: '$category', revenue: { $sum: '$amount' }, count: { $sum: 1 } } },
+        { $sort: { revenue: -1 } },
+        { $limit: 8 },
+      ]),
+    ]);
+    return {
+      points: rawPoints.map((p) => ({
+        label: p._id,
+        revenue: p.revenue,
+        orders: p.orders,
+        commission: Math.round(p.revenue * 0.1),
+      })),
+      categories: rawCategories.map((c) => ({
+        name: c._id || 'სხვა',
+        revenue: c.revenue,
+        count: c.count,
+      })),
+    };
+  },
+
   async getStats(): Promise<{ totalRevenue: number; totalRefunds: number; countByStatus: Record<string, number> }> {
     await mongo.connect();
     const [revenueResult, refundResult, statusCounts] = await Promise.all([

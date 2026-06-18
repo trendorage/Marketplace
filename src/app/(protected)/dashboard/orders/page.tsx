@@ -69,13 +69,20 @@ function exportCsv(orders: ApiOrder[]) {
   URL.revokeObjectURL(url);
 }
 
+type OrderStats = { countByStatus: Record<string, number>; totalRevenue: number };
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<OrderStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    http.get<OrderStats>('/orders?stats=true').then(setStats).catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -117,7 +124,8 @@ export default function OrdersPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {STATUS_TABS.filter((t) => t.value !== 'all').map((tab) => {
-          const count = orders.filter((o) => o.status === tab.value).length;
+          const count = stats?.countByStatus[tab.value as OrderStatus] ?? 0;
+          const allTotal = stats ? Object.values(stats.countByStatus).reduce((a, b) => a + b, 0) : 0;
           const cfg = STATUS_CONFIG[tab.value as OrderStatus];
           return (
             <Card key={tab.value} className="border-border bg-card">
@@ -125,7 +133,7 @@ export default function OrdersPage() {
                 <p className="text-xs text-muted-foreground">{tab.label}</p>
                 <p className="mt-1 text-xl font-bold text-foreground">{count}</p>
                 <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', cfg.className)}>
-                  {total > 0 ? `${Math.round((count / total) * 100)}%` : '0%'}
+                  {allTotal > 0 ? `${Math.round((count / allTotal) * 100)}%` : '0%'}
                 </span>
               </CardContent>
             </Card>

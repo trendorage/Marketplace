@@ -37,3 +37,16 @@ export async function getUsersService(
   const { items, total } = await userRepository.findAll(params);
   return { data: { users: items.map(docToUser), total }, status: 200 };
 }
+
+export async function updateUserService(
+  id: string,
+  data: { role?: string; status?: string }
+): Promise<ServiceResult<{ success: true }>> {
+  const existing = await userRepository.findById(id);
+  if (!existing) return { data: { error: 'NOT_FOUND' }, status: 404 };
+  const update: Partial<UserDocument> = {};
+  if (data.role) update.role = data.role as UserDocument['role'];
+  if (data.status) update.status = data.status as UserDocument['status'];
+  await userRepository.updateById(id, update);
+  return { data: { success: true }, status: 200 };
+}
