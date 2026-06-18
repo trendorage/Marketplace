@@ -1,11 +1,20 @@
 'use client';
 import { Bell, CreditCard, Package, Settings, ShoppingCart, Store, User } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { NOTIFICATIONS } from '@/features/dashboard/const/dashboard.const';
-import type { NotificationItem, NotificationType } from '@/features/dashboard/types/dashboard.types';
+import type { NotificationType } from '@/features/dashboard/types/dashboard.types';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { http } from '@/shared/lib/http';
 import { cn } from '@/shared/lib/utils';
+
+type ApiNotification = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  time: string;
+};
 
 const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   order: ShoppingCart,
@@ -25,12 +34,12 @@ const TYPE_COLOR: Record<NotificationType, string> = {
   payment: 'bg-emerald-100 text-emerald-600',
 };
 
-type NotificationCardProps = {
-  notification: NotificationItem;
+type CardProps = {
+  notification: ApiNotification;
   onMarkRead: (id: string) => void;
 };
 
-const NotificationCard = ({ notification, onMarkRead }: NotificationCardProps) => {
+const NotificationCard = ({ notification, onMarkRead }: CardProps) => {
   const Icon = TYPE_ICON[notification.type];
   const color = TYPE_COLOR[notification.type];
 
@@ -59,7 +68,9 @@ const NotificationCard = ({ notification, onMarkRead }: NotificationCardProps) =
             </button>
           )}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">{notification.time}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {notification.time ? new Date(notification.time).toLocaleString('ka-GE') : ''}
+        </p>
       </div>
       {!notification.read && (
         <div className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
@@ -69,14 +80,25 @@ const NotificationCard = ({ notification, onMarkRead }: NotificationCardProps) =
 };
 
 export default function NotificationsPage() {
-  const [items, setItems] = useState(NOTIFICATIONS);
+  const [items, setItems] = useState<ApiNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    http.get<{ notifications: ApiNotification[] }>('/notifications')
+      .then((res) => setItems(res.notifications))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   const unreadCount = items.filter((n) => !n.read).length;
 
   const markRead = (id: string) => {
+    http.patch(`/notifications/${id}`, {}).catch(() => {});
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
   const markAllRead = () => {
+    http.patch('/notifications', {}).catch(() => {});
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
@@ -99,7 +121,6 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: 'სულ', value: items.length, icon: Bell },
@@ -116,31 +137,37 @@ export default function NotificationsPage() {
         ))}
       </div>
 
-      {/* Unread */}
-      {unreadCount > 0 && (
-        <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            წაუკითხავი
-          </p>
-          <div className="space-y-3">
-            {items.filter((n) => !n.read).map((n) => (
-              <NotificationCard key={n.id} notification={n} onMarkRead={markRead} />
-            ))}
-          </div>
-        </div>
-      )}
+      {loading ? (
+        <p className="text-center text-sm text-muted-foreground py-12">იტვირთება...</p>
+      ) : items.length === 0 ? (
+        <p className="text-center text-sm text-muted-foreground py-12">შეტყობინებები არ არის</p>
+      ) : (
+        <>
+          {unreadCount > 0 && (
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                წაუკითხავი
+              </p>
+              <div className="space-y-3">
+                {items.filter((n) => !n.read).map((n) => (
+                  <NotificationCard key={n.id} notification={n} onMarkRead={markRead} />
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Read */}
-      <div>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          ადრე წაკითხული
-        </p>
-        <div className="space-y-3">
-          {items.filter((n) => n.read).map((n) => (
-            <NotificationCard key={n.id} notification={n} onMarkRead={markRead} />
-          ))}
-        </div>
-      </div>
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              ადრე წაკითხული
+            </p>
+            <div className="space-y-3">
+              {items.filter((n) => n.read).map((n) => (
+                <NotificationCard key={n.id} notification={n} onMarkRead={markRead} />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

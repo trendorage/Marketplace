@@ -752,6 +752,15 @@ export const DASHBOARD_NAV_SECTIONS: DashboardSidebarSection[] = [
       { href: '/dashboard/settings', label: 'პარამეტრები', icon: 'settings' },
     ],
   },
+  {
+    title: 'პარამეტრები',
+    items: [
+      { href: '/dashboard/theme', label: 'თემი', icon: 'palette' },
+      { href: '/dashboard/plans', label: 'გეგმები', icon: 'credit-card' },
+      { href: '/dashboard/database', label: 'მონაცემები', icon: 'database' },
+      { href: '/dashboard/content', label: 'კონტენტი', icon: 'file-text' },
+    ],
+  },
 ];
 
 export const DASHBOARD_PAGE_TITLES: Record<string, string> = {
@@ -767,4 +776,8 @@ export const DASHBOARD_PAGE_TITLES: Record<string, string> = {
   '/dashboard/ai': 'AI ასისტენტი',
   '/dashboard/notifications': 'შეტყობინებები',
   '/dashboard/settings': 'პარამეტრები',
+  '/dashboard/theme': 'თემის მართვა',
+  '/dashboard/plans': 'გეგმები და ფასები',
+  '/dashboard/database': 'DB Browser',
+  '/dashboard/content': 'კონტენტის მართვა',
 };

@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import {
   Area,
@@ -6,8 +7,10 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
   XAxis,
   YAxis,
 } from 'recharts';
@@ -18,24 +21,56 @@ import {
   REVENUE_DATA_30D,
 } from '@/features/dashboard/const/dashboard.const';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/shared/components/ui/chart';
 import { cn } from '@/shared/lib/utils';
 
-const USER_GROWTH = [
-  { label: 'იან', users: 820 },
-  { label: 'თებ', users: 940 },
-  { label: 'მარ', users: 1100 },
-  { label: 'აპრ', users: 1350 },
-  { label: 'მაი', users: 1200 },
-  { label: 'ივნ', users: 1580 },
-  { label: 'ივლ', users: 1920 },
-  { label: 'აგვ', users: 1740 },
-  { label: 'სექ', users: 2100 },
-  { label: 'ოქტ', users: 2380 },
-  { label: 'ნოე', users: 2650 },
-  { label: 'დეკ', users: 2940 },
+type Period = '30d' | '1y';
+
+const revenueChartConfig = {
+  revenue: {
+    label: 'შემოსავალი',
+    color: 'var(--chart-1)',
+  },
+  commission: {
+    label: 'საკომისიო',
+    color: 'var(--chart-3)',
+  },
+} satisfies ChartConfig;
+
+const ordersChartConfig = {
+  orders: {
+    label: 'შეკვეთები',
+    color: 'var(--chart-2)',
+  },
+} satisfies ChartConfig;
+
+const PIE_COLORS = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  '#a855f7',
 ];
 
-type Period = '30d' | '1y';
+const categoryChartConfig = Object.fromEntries(
+  CATEGORY_STATS.map((cat, i) => [
+    cat.name,
+    { label: cat.name, color: PIE_COLORS[i % PIE_COLORS.length] },
+  ])
+) satisfies ChartConfig;
+
+const pieData = CATEGORY_STATS.map((cat) => ({
+  name: cat.name,
+  value: cat.revenue,
+}));
 
 export default function AnalyticsPage() {
   const [revenuePeriod, setRevenuePeriod] = useState<Period>('30d');
@@ -48,7 +83,7 @@ export default function AnalyticsPage() {
         <p className="text-sm text-muted-foreground">საბაზრო მონაცემების ვიზუალიზაცია</p>
       </div>
 
-      {/* Revenue chart */}
+      {/* Section 1: Revenue + Commission AreaChart */}
       <Card className="border-border bg-card">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -72,100 +107,173 @@ export default function AnalyticsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={260}>
+          <ChartContainer config={revenueChartConfig} className="h-64 w-full">
             <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#dd3327" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#dd3327" stopOpacity={0} />
+                <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="fillCommission" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-commission)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--color-commission)" stopOpacity={0.05} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                axisLine={false}
+                tickLine={false}
+              />
               <YAxis
                 tickFormatter={(v: number) => `₾${(v / 1000).toFixed(0)}k`}
-                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                 axisLine={false}
                 tickLine={false}
                 width={44}
               />
-              <Tooltip
-                contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
-                formatter={(v) => [`₾${Number(v).toLocaleString()}`, 'შემოსავალი']}
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => [
+                      `₾${Number(value).toLocaleString()}`,
+                      revenueChartConfig[name as keyof typeof revenueChartConfig]?.label ?? name,
+                    ]}
+                  />
+                }
               />
-              <Area type="monotone" dataKey="revenue" stroke="#dd3327" strokeWidth={2} fill="url(#grad1)" dot={false} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="var(--color-revenue)"
+                strokeWidth={2}
+                fill="url(#fillRevenue)"
+                dot={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="commission"
+                stroke="var(--color-commission)"
+                strokeWidth={2}
+                fill="url(#fillCommission)"
+                dot={false}
+              />
             </AreaChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Orders chart */}
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">შეკვეთები (წლიური)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={REVENUE_DATA_1Y} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={36} />
-                <Tooltip
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
-                  formatter={(v) => [Number(v), 'შეკვეთები']}
-                />
-                <Bar dataKey="orders" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Section 2: Orders BarChart */}
+      <Card className="border-border bg-card">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">შეკვეთები (პერიოდი)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={ordersChartConfig} className="h-56 w-full">
+            <BarChart
+              data={revenueData}
+              margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                axisLine={false}
+                tickLine={false}
+                width={36}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => [
+                      Number(value),
+                      ordersChartConfig[name as keyof typeof ordersChartConfig]?.label ?? name,
+                    ]}
+                  />
+                }
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar
+                dataKey="orders"
+                fill="var(--color-orders)"
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
 
-        {/* User growth chart */}
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">მომხმარებლების ზრდა</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={USER_GROWTH} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="grad2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={40} />
-                <Tooltip
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
-                  formatter={(v) => [Number(v), 'მომხმარებლები']}
-                />
-                <Area type="monotone" dataKey="users" stroke="#10b981" strokeWidth={2} fill="url(#grad2)" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Category breakdown */}
+      {/* Section 3: Category PieChart */}
       <Card className="border-border bg-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">კატეგორიების ანალიზი</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-            {CATEGORY_STATS.map((cat) => (
-              <div key={cat.name} className="rounded-xl border border-border bg-muted p-4 text-center">
-                <p className="text-xs font-medium text-foreground">{cat.name}</p>
-                <p className="mt-2 text-lg font-bold text-foreground">
-                  ₾{(cat.revenue / 1000).toFixed(0)}k
-                </p>
-                <p className="mt-0.5 text-xs font-medium text-green-500">{cat.growth}</p>
-                <p className="text-xs text-muted-foreground">{cat.products} პ.</p>
-              </div>
-            ))}
+          <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start">
+            <ChartContainer config={categoryChartConfig} className="h-64 w-full max-w-xs shrink-0">
+              <PieChart>
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, name) => [
+                        `₾${Number(value).toLocaleString()}`,
+                        name,
+                      ]}
+                    />
+                  }
+                />
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  strokeWidth={2}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${entry.name}`}
+                      fill={PIE_COLORS[index % PIE_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Legend
+                  formatter={(value) => (
+                    <span className="text-xs text-foreground">{value}</span>
+                  )}
+                />
+              </PieChart>
+            </ChartContainer>
+
+            <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3">
+              {CATEGORY_STATS.map((cat, index) => (
+                <div
+                  key={cat.name}
+                  className="rounded-xl border border-border bg-muted p-4"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <div
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
+                    />
+                    <p className="text-xs font-medium text-foreground">{cat.name}</p>
+                  </div>
+                  <p className="text-lg font-bold text-foreground">
+                    ₾{(cat.revenue / 1000).toFixed(0)}k
+                  </p>
+                  <p className="mt-0.5 text-xs font-medium text-green-500">{cat.growth}</p>
+                  <p className="text-xs text-muted-foreground">{cat.products} პ.</p>
+                </div>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>

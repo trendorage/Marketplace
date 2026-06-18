@@ -12,11 +12,24 @@ export const userRepository = {
     return UserModel.findOne({ email }).lean<UserDocument>().exec();
   },
 
-  async findAll(page = 1, limit = 20): Promise<{ items: UserDocument[] }> {
+  async findAll(
+    params: { page?: number; limit?: number; search?: string; status?: string; role?: string } = {}
+  ): Promise<{ items: UserDocument[]; total: number }> {
     await mongo.connect();
+    const { page = 1, limit = 20, search = '', status = '', role = '' } = params;
+    const filter: Record<string, unknown> = {};
+    if (search) filter['$or'] = [
+      { name: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+    ];
+    if (status) filter['status'] = status;
+    if (role) filter['role'] = role;
     const skip = (page - 1) * limit;
-    const items = await UserModel.find({}, null, { skip, limit }).lean<UserDocument[]>().exec();
-    return { items };
+    const [items, total] = await Promise.all([
+      UserModel.find(filter, null, { skip, limit }).lean<UserDocument[]>().exec(),
+      UserModel.countDocuments(filter),
+    ]);
+    return { items, total };
   },
 
   async create(data: Omit<UserDocument, '_id' | 'createdAt' | 'updatedAt'>): Promise<string> {

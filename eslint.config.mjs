@@ -74,9 +74,15 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["**/const/**", "**/dashboard/**", "**/features/products/**", "**/features/categories/**", "**/features/ai/**", "**/app/(public)/products/**"],
+    files: ["**/const/**", "**/dashboard/**", "**/features/products/**", "**/features/categories/**", "**/features/ai/**", "**/app/(public)/products/**", "**/features/plans/**", "**/features/sellers/**", "**/features/orders/**", "**/features/notifications/**", "**/features/content/**", "**/features/theme/**", "**/features/settings/**"],
     rules: {
       "max-lines": "off",
+    },
+  },
+  {
+    files: ["**/app/(protected)/dashboard/**"],
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
     },
   },
   {

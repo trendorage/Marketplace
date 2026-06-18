@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
@@ -7,6 +7,21 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Separator } from '@/shared/components/ui/separator';
 import { Switch } from '@/shared/components/ui/switch';
+import { http } from '@/shared/lib/http';
+
+type SettingsData = {
+  siteName: string;
+  siteUrl: string;
+  supportEmail: string;
+  defaultCommission: number;
+  sellerCommission: number;
+  minPayout: number;
+  emailNewOrder: boolean;
+  emailNewUser: boolean;
+  emailNewSeller: boolean;
+  emailLowStock: boolean;
+  emailSystem: boolean;
+};
 
 type SettingsSection = {
   id: string;
@@ -20,34 +35,51 @@ const SECTIONS: SettingsSection[] = [
   { id: 'notifications', label: 'შეტყობინებები' },
 ];
 
+const DEFAULT_SETTINGS: SettingsData = {
+  siteName: 'Trendora',
+  siteUrl: 'https://trendora.ge',
+  supportEmail: 'support@trendora.ge',
+  defaultCommission: 10,
+  sellerCommission: 8,
+  minPayout: 50,
+  emailNewOrder: true,
+  emailNewUser: true,
+  emailNewSeller: true,
+  emailLowStock: false,
+  emailSystem: true,
+};
+
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('general');
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
 
-  const [settings, setSettings] = useState({
-    siteName: 'Trendora',
-    siteUrl: 'https://trendora.ge',
-    supportEmail: 'support@trendora.ge',
-    defaultCommission: '10',
-    sellerCommission: '8',
-    minPayout: '50',
-    emailNewOrder: true,
-    emailNewUser: true,
-    emailNewSeller: true,
-    emailLowStock: false,
-    emailSystem: true,
-  });
+  useEffect(() => {
+    http.get<SettingsData>('/settings')
+      .then((res) => setSettings(res))
+      .catch(() => {});
+  }, []);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updated = await http.patch<SettingsData>('/settings', settings);
+      setSettings(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleToggle = (key: keyof typeof settings) => {
+  const handleToggle = (key: keyof SettingsData) => {
     setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleInput = (key: keyof typeof settings, value: string) => {
+  const handleInput = (key: keyof SettingsData, value: string | number) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -59,7 +91,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex gap-6">
-        {/* Sidebar nav */}
         <div className="hidden w-48 shrink-0 sm:block">
           <nav className="space-y-1">
             {SECTIONS.map((section) => (
@@ -78,9 +109,7 @@ export default function SettingsPage() {
           </nav>
         </div>
 
-        {/* Content */}
         <div className="flex-1 space-y-4">
-          {/* Mobile section tabs */}
           <div className="flex gap-1 sm:hidden">
             {SECTIONS.map((section) => (
               <button
@@ -148,7 +177,7 @@ export default function SettingsPage() {
                     id="defaultCommission"
                     type="number"
                     value={settings.defaultCommission}
-                    onChange={(e) => handleInput('defaultCommission', e.target.value)}
+                    onChange={(e) => handleInput('defaultCommission', +e.target.value)}
                     className="max-w-32"
                   />
                   <p className="text-xs text-muted-foreground">ნაგულისხმევი კომისია ყველა გამყიდველისთვის</p>
@@ -162,7 +191,7 @@ export default function SettingsPage() {
                     id="sellerCommission"
                     type="number"
                     value={settings.sellerCommission}
-                    onChange={(e) => handleInput('sellerCommission', e.target.value)}
+                    onChange={(e) => handleInput('sellerCommission', +e.target.value)}
                     className="max-w-32"
                   />
                 </div>
@@ -175,7 +204,7 @@ export default function SettingsPage() {
                     id="minPayout"
                     type="number"
                     value={settings.minPayout}
-                    onChange={(e) => handleInput('minPayout', e.target.value)}
+                    onChange={(e) => handleInput('minPayout', +e.target.value)}
                     className="max-w-32"
                   />
                 </div>
@@ -237,9 +266,10 @@ export default function SettingsPage() {
 
           <Button
             onClick={handleSave}
+            disabled={saving}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            {saved ? 'შენახულია ✓' : 'შენახვა'}
+            {saved ? 'შენახულია ✓' : saving ? 'ინახება...' : 'შენახვა'}
           </Button>
         </div>
       </div>

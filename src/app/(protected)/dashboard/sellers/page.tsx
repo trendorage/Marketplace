@@ -1,8 +1,7 @@
 'use client';
 import { Search, Star } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { SELLERS_LIST } from '@/features/dashboard/const/dashboard.const';
 import type { SellerStatus } from '@/features/dashboard/types/dashboard.types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Input } from '@/shared/components/ui/input';
@@ -14,7 +13,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/components/ui/table';
+import { http } from '@/shared/lib/http';
 import { cn } from '@/shared/lib/utils';
+
+type ApiSeller = {
+  id: string;
+  name: string;
+  email: string;
+  storeName: string;
+  products: number;
+  rating: number;
+  revenue: number;
+  commissionRate: number;
+  status: SellerStatus;
+  joinDate: string;
+};
 
 const STATUS_CONFIG: Record<SellerStatus, { label: string; className: string }> = {
   active: { label: 'აქტიური', className: 'bg-green-100 text-green-800' },
@@ -23,37 +36,40 @@ const STATUS_CONFIG: Record<SellerStatus, { label: string; className: string }> 
 };
 
 export default function SellersPage() {
+  const [sellers, setSellers] = useState<ApiSeller[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<SellerStatus | 'all'>('all');
 
-  const filtered = SELLERS_LIST.filter((s) => {
-    const matchesSearch =
-      search === '' ||
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.storeName.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      search,
+      status: statusFilter === 'all' ? '' : statusFilter,
+    });
+    http.get<{ sellers: ApiSeller[] }>(`/sellers?${params}`)
+      .then((res) => setSellers(res.sellers))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [search, statusFilter]);
 
-  const totalRevenue = SELLERS_LIST.reduce((sum, s) => sum + s.revenue, 0);
-  const activeCount = SELLERS_LIST.filter((s) => s.status === 'active').length;
-  const pendingCount = SELLERS_LIST.filter((s) => s.status === 'pending').length;
+  const totalRevenue = sellers.reduce((sum, s) => sum + s.revenue, 0);
+  const activeCount = sellers.filter((s) => s.status === 'active').length;
+  const pendingCount = sellers.filter((s) => s.status === 'pending').length;
 
   return (
     <div className="space-y-5">
       <div>
         <h2 className="text-lg font-bold text-foreground">გამყიდველების მართვა</h2>
-        <p className="text-sm text-muted-foreground">სულ {SELLERS_LIST.length} გამყიდველი</p>
+        <p className="text-sm text-muted-foreground">სულ {sellers.length} გამყიდველი</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'სულ', value: SELLERS_LIST.length },
+          { label: 'სულ', value: sellers.length },
           { label: 'აქტიური', value: activeCount },
           { label: 'მოლოდინში', value: pendingCount },
-          { label: 'სულ შემოსავალი', value: `₾${(totalRevenue / 1000).toFixed(0)}k` },
+          { label: 'სულ შემოსავალი', value: totalRevenue > 0 ? `₾${(totalRevenue / 1000).toFixed(0)}k` : '₾0' },
         ].map((stat) => (
           <Card key={stat.label} className="border-border bg-card">
             <CardContent className="p-4">
@@ -64,7 +80,6 @@ export default function SellersPage() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-52">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -93,7 +108,6 @@ export default function SellersPage() {
         </div>
       </div>
 
-      {/* Table */}
       <Card className="border-border bg-card">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -110,14 +124,20 @@ export default function SellersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
+                      იტვირთება...
+                    </TableCell>
+                  </TableRow>
+                ) : sellers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
                       გამყიდველები ვერ მოიძებნა
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((seller) => {
+                  sellers.map((seller) => {
                     const status = STATUS_CONFIG[seller.status];
                     return (
                       <TableRow key={seller.id} className="border-border">
@@ -136,7 +156,7 @@ export default function SellersPage() {
                         <TableCell className="hidden md:table-cell">
                           <div className="flex items-center gap-1">
                             <Star className="size-3 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs text-foreground">{seller.rating}</span>
+                            <span className="text-xs text-foreground">{seller.rating.toFixed(1)}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-xs font-semibold text-foreground">
