@@ -23,6 +23,9 @@ export async function PATCH(
     }
 
     const { id } = await params;
+    if (!id || id.length !== 24) {
+      return NextResponse.json({ error: 'INVALID_ID' }, { status: 400 });
+    }
 
     const result = await validateBody(req, UpdateOrderSchema);
     if (result instanceof NextResponse) return result;

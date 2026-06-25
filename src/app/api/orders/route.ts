@@ -28,9 +28,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data, { status });
     }
 
+    const rawPage = parseInt(searchParams.get('page') ?? '1');
+    const rawLimit = parseInt(searchParams.get('limit') ?? '50');
     const { data, status } = await getOrdersService({
-      page: parseInt(searchParams.get('page') ?? '1'),
-      limit: parseInt(searchParams.get('limit') ?? '50'),
+      page: Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1,
+      limit: Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 50,
       search: searchParams.get('search') ?? '',
       status: searchParams.get('status') ?? '',
     });

@@ -4,12 +4,14 @@ import { mongo } from '@/shared/lib/mongo';
 type FindAllParams = {
   search?: string;
   status?: string;
+  page?: number;
+  limit?: number;
 };
 
 export const sellerRepository = {
-  async findAll(params: FindAllParams = {}): Promise<SellerDocument[]> {
+  async findAll(params: FindAllParams = {}): Promise<{ items: SellerDocument[]; total: number }> {
     await mongo.connect();
-    const { search = '', status = '' } = params;
+    const { search = '', status = '', page = 1, limit = 50 } = params;
     const filter: Record<string, unknown> = {};
     if (search) filter['$or'] = [
       { name: { $regex: search, $options: 'i' } },
@@ -17,7 +19,12 @@ export const sellerRepository = {
       { storeName: { $regex: search, $options: 'i' } },
     ];
     if (status) filter['status'] = status;
-    return SellerModel.find(filter, null, { sort: { createdAt: -1 } }).lean<SellerDocument[]>().exec();
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      SellerModel.find(filter, null, { skip, limit, sort: { createdAt: -1 } }).lean<SellerDocument[]>().exec(),
+      SellerModel.countDocuments(filter),
+    ]);
+    return { items, total };
   },
 
   async create(data: Omit<SellerDocument, '_id' | 'createdAt' | 'updatedAt'>): Promise<string> {

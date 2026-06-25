@@ -31,10 +31,10 @@ function docToSeller(doc: SellerDocument): Seller {
 }
 
 export async function getSellersService(
-  params: { search?: string; status?: string } = {}
-): Promise<ServiceResult<{ sellers: Seller[] }>> {
-  const items = await sellerRepository.findAll(params);
-  return { data: { sellers: items.map(docToSeller) }, status: 200 };
+  params: { search?: string; status?: string; page?: number; limit?: number } = {}
+): Promise<ServiceResult<{ sellers: Seller[]; total: number }>> {
+  const { items, total } = await sellerRepository.findAll(params);
+  return { data: { sellers: items.map(docToSeller), total }, status: 200 };
 }
 
 export async function updateSellerService(

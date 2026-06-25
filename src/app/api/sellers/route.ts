@@ -13,9 +13,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
     const { searchParams } = new URL(req.url);
+    const rawPage = parseInt(searchParams.get('page') ?? '1');
+    const rawLimit = parseInt(searchParams.get('limit') ?? '50');
     const { data, status } = await getSellersService({
       search: searchParams.get('search') ?? '',
       status: searchParams.get('status') ?? '',
+      page: Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1,
+      limit: Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 50,
     });
     return NextResponse.json(data, { status });
   } catch {

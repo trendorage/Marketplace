@@ -27,7 +27,7 @@ export async function GET() {
       totalOrders,
       totalUsers: usersResult.total,
       totalProducts: productsResult.total,
-      totalSellers: sellers.length,
+      totalSellers: sellers.total,
       pendingOrders: orderStats.countByStatus['pending'] ?? 0,
       countByStatus: orderStats.countByStatus,
     });
