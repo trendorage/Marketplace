@@ -16,6 +16,8 @@ async function requireAdmin(): Promise<NextResponse | null> {
   return null;
 }
 
+const COLLECTION_RE = /^[a-zA-Z0-9_-]+$/;
+
 function parseId(id: string): ObjectId | string {
   if (ObjectId.isValid(id) && id.length === 24) {
     return new ObjectId(id);
@@ -38,6 +40,9 @@ export async function GET(
     if (authError) return authError;
 
     const { collection, id } = await params;
+    if (!COLLECTION_RE.test(collection)) {
+      return NextResponse.json({ error: 'INVALID_COLLECTION' }, { status: 400 });
+    }
 
     await mongo.connect();
     const db = mongoose.connection.db;
@@ -65,6 +70,9 @@ export async function PUT(
     if (authError) return authError;
 
     const { collection, id } = await params;
+    if (!COLLECTION_RE.test(collection)) {
+      return NextResponse.json({ error: 'INVALID_COLLECTION' }, { status: 400 });
+    }
     const body = await req.json() as Record<string, unknown>;
 
     await mongo.connect();
@@ -98,6 +106,9 @@ export async function DELETE(
     if (authError) return authError;
 
     const { collection, id } = await params;
+    if (!COLLECTION_RE.test(collection)) {
+      return NextResponse.json({ error: 'INVALID_COLLECTION' }, { status: 400 });
+    }
 
     await mongo.connect();
     const db = mongoose.connection.db;

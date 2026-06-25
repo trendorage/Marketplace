@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Trendora** (`trendora.ge`) — მარკეტფლეისი. Auth: Google OAuth + Email/Password. ადმინი მართავს dashboard-იდან.
 
-განხორციელებული features: `products`, `categories`, `ai-assistant`, `orders`, `notifications`, `settings`, `sellers`, `plans`, `content`, `theme`, `database-browser`.
+განხორციელებული features: `products`, `categories`, `ai-assistant`, `orders`, `notifications`, `settings`, `sellers`, `plans`, `content`, `theme`, `database-browser`, `marketing`.
 დაგეგმილი: `cart`.
 
 ## Commands
@@ -17,7 +17,9 @@ npm run build
 npm run lint:fix
 npm run typecheck
 npm run test:run
+npm run test:cov     # coverage report
 npx vitest run src/features/auth/service/auth.service.spec.ts   # single test file
+node scripts/seed-admin.mjs   # create/promote admin user from SEED_EMAIL + SEED_PASSWORD
 ```
 
 Husky pre-commit: `lint → build → test` — ერთი ჩავარდნა = commit დაბლოკილი.
@@ -39,6 +41,12 @@ BLOB_READ_WRITE_TOKEN=...         # @vercel/blob — სურათების
 
 Vercel-ზე: `AUTH_SECRET` (v5 primary), `MONGO_URI` **production + preview + development** targets-ზე.
 `MONGO_URI` development-only → production-ში auth `Configuration` error.
+
+**Windows localhost:** `mongodb+srv://` SRV lookup ვერ მუშაობს Node.js-ზე Windows-ში — გამოიყენე direct connection string:
+```
+mongodb://user:pass@ac-XXXXX-shard-00-00.CLUSTER.mongodb.net:27017,ac-XXXXX-shard-00-01.CLUSTER.mongodb.net:27017,ac-XXXXX-shard-00-02.CLUSTER.mongodb.net:27017/?replicaSet=atlas-XXXXX&ssl=true&authSource=admin&appName=trendora
+```
+SRV shard hostnames: `nslookup -type=SRV _mongodb._tcp.<cluster>` — replicaSet name: `nslookup -type=TXT <cluster>`.
 
 ## Request Flow
 
@@ -77,6 +85,8 @@ src/app/
 
 `(protected)/layout.tsx` double-check: `auth()` → `role === 'admin'` → redirect `/`.
 Edge middleware (`proxy.ts`) does cookie-only pre-check.
+
+Dashboard pages: `ai`, `analytics`, `categories`, `content`, `database`, `financial`, `notifications`, `orders`, `plans`, `products`, `reports`, `sellers`, `settings`, `theme`, `users`.
 
 ## API Routes
 

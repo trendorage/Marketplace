@@ -46,3 +46,12 @@ export async function getOrderStatsService(): Promise<ServiceResult<OrderStats>>
   const stats = await orderRepository.getStats();
   return { data: stats, status: 200 };
 }
+
+export async function updateOrderStatusService(
+  id: string,
+  status: Order['status']
+): Promise<ServiceResult<{ updated: boolean }>> {
+  const updated = await orderRepository.updateStatus(id, status);
+  if (!updated) return { data: { error: 'NOT_FOUND' }, status: 404 };
+  return { data: { updated: true }, status: 200 };
+}

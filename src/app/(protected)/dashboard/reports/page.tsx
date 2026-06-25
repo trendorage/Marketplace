@@ -1,13 +1,7 @@
 'use client';
 import { Download, FileText, TrendingUp, Users } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import {
-  CATEGORY_STATS,
-  REVENUE_DATA_1Y,
-  SELLERS_LIST,
-  USERS_LIST,
-} from '@/features/dashboard/const/dashboard.const';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import {
@@ -18,9 +12,41 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/components/ui/table';
+import { http } from '@/shared/lib/http';
 import { cn } from '@/shared/lib/utils';
 
 type ReportType = 'sales' | 'users' | 'sellers' | 'categories';
+
+type RevenuePoint = { label: string; revenue: number; orders: number; commission: number };
+type CategoryPoint = { name: string; revenue: number; count: number };
+
+type AnalyticsData = {
+  points: RevenuePoint[];
+  categories: CategoryPoint[];
+};
+
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+};
+
+type UsersResponse = { users: User[]; total: number };
+
+type Seller = {
+  id: string;
+  name: string;
+  email: string;
+  storeName: string;
+  products: number;
+  revenue: number;
+  rating: number;
+  status: string;
+};
+
+type SellersResponse = { sellers: Seller[] };
 
 const REPORT_TABS: { id: ReportType; label: string; icon: typeof FileText }[] = [
   { id: 'sales', label: 'გაყიდვები', icon: TrendingUp },
@@ -29,12 +55,78 @@ const REPORT_TABS: { id: ReportType; label: string; icon: typeof FileText }[] = 
   { id: 'categories', label: 'კატეგორიები', icon: FileText },
 ];
 
+function exportCSV(headers: string[], rows: string[][], filename: string) {
+  const lines = [headers.join(','), ...rows.map((r) => r.map((c) => `"${c}"`).join(','))];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function ReportsPage() {
   const [activeReport, setActiveReport] = useState<ReportType>('sales');
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [sellers, setSellers] = useState<Seller[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const totalRevenue = REVENUE_DATA_1Y.reduce((sum, d) => sum + d.revenue, 0);
-  const totalOrders = REVENUE_DATA_1Y.reduce((sum, d) => sum + d.orders, 0);
-  const avgOrderValue = Math.round(totalRevenue / totalOrders);
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [analyticsData, usersData, sellersData] = await Promise.all([
+          http.get<AnalyticsData>('/admin/analytics', { params: { period: '1y' } }),
+          http.get<UsersResponse>('/users', { params: { limit: 100, page: 1 } }),
+          http.get<SellersResponse>('/sellers'),
+        ]);
+        setAnalytics(analyticsData);
+        setUsers(usersData.users);
+        setSellers(sellersData.sellers);
+      } catch {
+        setError('მონაცემების ჩატვირთვა ვერ მოხდა');
+      } finally {
+        setLoading(false);
+      }
+    }
+    void load();
+  }, []);
+
+  const totalRevenue = analytics?.points.reduce((s, d) => s + d.revenue, 0) ?? 0;
+  const totalOrders = analytics?.points.reduce((s, d) => s + d.orders, 0) ?? 0;
+  const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+
+  function handleCSV() {
+    if (activeReport === 'sales' && analytics) {
+      exportCSV(
+        ['თვე', 'შემოსავალი', 'შეკვეთები', 'საშ. ღირებულება'],
+        analytics.points.map((r) => [r.label, String(r.revenue), String(r.orders), String(Math.round(r.revenue / (r.orders || 1)))]),
+        'sales-report.csv'
+      );
+    } else if (activeReport === 'users') {
+      exportCSV(
+        ['სახელი', 'Email', 'როლი', 'სტატუსი'],
+        users.map((u) => [u.name, u.email, u.role, u.status]),
+        'users-report.csv'
+      );
+    } else if (activeReport === 'sellers') {
+      exportCSV(
+        ['სახელი', 'მაღაზია', 'პროდუქტები', 'შემოსავალი', 'სტატუსი'],
+        sellers.map((s) => [s.name, s.storeName, String(s.products), String(s.revenue), s.status]),
+        'sellers-report.csv'
+      );
+    } else if (activeReport === 'categories' && analytics) {
+      exportCSV(
+        ['კატეგორია', 'შეკვეთები', 'შემოსავალი'],
+        analytics.categories.map((c) => [c.name, String(c.count), String(c.revenue)]),
+        'categories-report.csv'
+      );
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -46,13 +138,14 @@ export default function ReportsPage() {
         <Button
           variant="outline"
           className="flex items-center gap-2 border-border text-sm"
+          onClick={handleCSV}
+          disabled={loading}
         >
           <Download className="size-4" />
           CSV გადმოტვირთვა
         </Button>
       </div>
 
-      {/* Report type tabs */}
       <div className="flex flex-wrap gap-1">
         {REPORT_TABS.map((tab) => {
           const Icon = tab.icon;
@@ -74,8 +167,25 @@ export default function ReportsPage() {
         })}
       </div>
 
-      {/* Sales report */}
-      {activeReport === 'sales' && (
+      {loading && (
+        <Card className="border-border bg-card">
+          <CardContent className="p-6">
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-4 animate-pulse rounded bg-muted" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {error && !loading && (
+        <Card className="border-border bg-card">
+          <CardContent className="p-6 text-center text-sm text-red-500">{error}</CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && activeReport === 'sales' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {[
@@ -91,35 +201,40 @@ export default function ReportsPage() {
               </Card>
             ))}
           </div>
-
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">თვიური გაყიდვების ანგარიში</CardTitle>
+              <CardTitle className="text-base">გაყიდვების ანგარიში</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="pl-6 text-xs">თვე</TableHead>
+                      <TableHead className="pl-6 text-xs">პერიოდი</TableHead>
                       <TableHead className="text-xs">შემოსავალი</TableHead>
                       <TableHead className="text-xs">შეკვეთები</TableHead>
                       <TableHead className="pr-6 text-xs">საშ. ღირებულება</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {REVENUE_DATA_1Y.map((row) => (
-                      <TableRow key={row.label} className="border-border">
-                        <TableCell className="pl-6 text-sm font-medium text-foreground">{row.label}</TableCell>
-                        <TableCell className="text-sm font-semibold text-foreground">
-                          ₾{row.revenue.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-sm text-foreground">{row.orders}</TableCell>
-                        <TableCell className="pr-6 text-sm text-muted-foreground">
-                          ₾{Math.round(row.revenue / row.orders)}
+                    {(analytics?.points ?? []).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                          მონაცემები არ არის
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      (analytics?.points ?? []).map((row) => (
+                        <TableRow key={row.label} className="border-border">
+                          <TableCell className="pl-6 text-sm font-medium text-foreground">{row.label}</TableCell>
+                          <TableCell className="text-sm font-semibold text-foreground">₾{row.revenue.toLocaleString()}</TableCell>
+                          <TableCell className="text-sm text-foreground">{row.orders}</TableCell>
+                          <TableCell className="pr-6 text-sm text-muted-foreground">
+                            ₾{Math.round(row.revenue / (row.orders || 1))}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -128,14 +243,13 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* Users report */}
-      {activeReport === 'users' && (
+      {!loading && !error && activeReport === 'users' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {[
-              { label: 'სულ მომხმარებელი', value: USERS_LIST.length },
-              { label: 'აქტიური', value: USERS_LIST.filter((u) => u.status === 'active').length },
-              { label: 'ახალი (30 დღე)', value: 3 },
+              { label: 'სულ მომხმარებელი', value: users.length },
+              { label: 'აქტიური', value: users.filter((u) => u.status === 'active').length },
+              { label: 'ადმინი', value: users.filter((u) => u.role === 'admin').length },
             ].map((kpi) => (
               <Card key={kpi.label} className="border-border bg-card">
                 <CardContent className="p-5">
@@ -145,7 +259,6 @@ export default function ReportsPage() {
               </Card>
             ))}
           </div>
-
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">მომხმარებლების ანგარიში</CardTitle>
@@ -158,27 +271,33 @@ export default function ReportsPage() {
                       <TableHead className="pl-6 text-xs">სახელი</TableHead>
                       <TableHead className="text-xs">Email</TableHead>
                       <TableHead className="hidden text-xs sm:table-cell">როლი</TableHead>
-                      <TableHead className="hidden text-xs md:table-cell">შეკვეთები</TableHead>
                       <TableHead className="pr-6 text-xs">სტატუსი</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {USERS_LIST.map((user) => (
-                      <TableRow key={user.id} className="border-border">
-                        <TableCell className="pl-6 text-sm font-medium text-foreground">{user.name}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{user.email}</TableCell>
-                        <TableCell className="hidden text-xs text-foreground sm:table-cell capitalize">{user.role}</TableCell>
-                        <TableCell className="hidden text-sm text-foreground md:table-cell">{user.orders}</TableCell>
-                        <TableCell className="pr-6">
-                          <span className={cn(
-                            'rounded-full px-2 py-0.5 text-xs font-medium',
-                            user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          )}>
-                            {user.status === 'active' ? 'აქტიური' : 'დაბლოკილი'}
-                          </span>
+                    {users.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                          მომხმარებლები არ არის
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      users.map((user) => (
+                        <TableRow key={user.id} className="border-border">
+                          <TableCell className="pl-6 text-sm font-medium text-foreground">{user.name}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{user.email}</TableCell>
+                          <TableCell className="hidden text-xs capitalize text-foreground sm:table-cell">{user.role}</TableCell>
+                          <TableCell className="pr-6">
+                            <span className={cn(
+                              'rounded-full px-2 py-0.5 text-xs font-medium',
+                              user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            )}>
+                              {user.status === 'active' ? 'აქტიური' : 'დაბლოკილი'}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -187,14 +306,13 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* Sellers report */}
-      {activeReport === 'sellers' && (
+      {!loading && !error && activeReport === 'sellers' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {[
-              { label: 'სულ გამყიდველი', value: SELLERS_LIST.length },
-              { label: 'სულ შემოსავალი', value: `₾${(SELLERS_LIST.reduce((s, x) => s + x.revenue, 0) / 1000).toFixed(0)}k` },
-              { label: 'საშ. რეიტინგი', value: (SELLERS_LIST.reduce((s, x) => s + x.rating, 0) / SELLERS_LIST.length).toFixed(1) },
+              { label: 'სულ გამყიდველი', value: sellers.length },
+              { label: 'სულ შემოსავალი', value: `₾${(sellers.reduce((s, x) => s + x.revenue, 0) / 1000).toFixed(0)}k` },
+              { label: 'საშ. რეიტინგი', value: sellers.length > 0 ? (sellers.reduce((s, x) => s + x.rating, 0) / sellers.length).toFixed(1) : '0' },
             ].map((kpi) => (
               <Card key={kpi.label} className="border-border bg-card">
                 <CardContent className="p-5">
@@ -204,7 +322,6 @@ export default function ReportsPage() {
               </Card>
             ))}
           </div>
-
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">გამყიდველების ანგარიში</CardTitle>
@@ -222,28 +339,34 @@ export default function ReportsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {SELLERS_LIST.map((seller) => (
-                      <TableRow key={seller.id} className="border-border">
-                        <TableCell className="pl-6 text-sm font-medium text-foreground">{seller.name}</TableCell>
-                        <TableCell className="text-sm text-foreground">{seller.storeName}</TableCell>
-                        <TableCell className="hidden text-sm text-foreground sm:table-cell">{seller.products}</TableCell>
-                        <TableCell className="text-sm font-semibold text-foreground">
-                          ₾{seller.revenue.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="pr-6">
-                          <span className={cn(
-                            'rounded-full px-2 py-0.5 text-xs font-medium',
-                            seller.status === 'active'
-                              ? 'bg-green-100 text-green-800'
-                              : seller.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                          )}>
-                            {seller.status === 'active' ? 'აქტიური' : seller.status === 'pending' ? 'მოლოდინში' : 'შეჩერებული'}
-                          </span>
+                    {sellers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                          გამყიდველები არ არის
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      sellers.map((seller) => (
+                        <TableRow key={seller.id} className="border-border">
+                          <TableCell className="pl-6 text-sm font-medium text-foreground">{seller.name}</TableCell>
+                          <TableCell className="text-sm text-foreground">{seller.storeName}</TableCell>
+                          <TableCell className="hidden text-sm text-foreground sm:table-cell">{seller.products}</TableCell>
+                          <TableCell className="text-sm font-semibold text-foreground">₾{seller.revenue.toLocaleString()}</TableCell>
+                          <TableCell className="pr-6">
+                            <span className={cn(
+                              'rounded-full px-2 py-0.5 text-xs font-medium',
+                              seller.status === 'active'
+                                ? 'bg-green-100 text-green-800'
+                                : seller.status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                            )}>
+                              {seller.status === 'active' ? 'აქტიური' : seller.status === 'pending' ? 'მოლოდინში' : 'შეჩერებული'}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -252,14 +375,13 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* Categories report */}
-      {activeReport === 'categories' && (
+      {!loading && !error && activeReport === 'categories' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {[
-              { label: 'კატეგორიები', value: CATEGORY_STATS.length },
-              { label: 'სულ პროდუქტი', value: CATEGORY_STATS.reduce((s, c) => s + c.products, 0) },
-              { label: 'სულ შემოსავალი', value: `₾${(CATEGORY_STATS.reduce((s, c) => s + c.revenue, 0) / 1000).toFixed(0)}k` },
+              { label: 'კატეგორიები', value: analytics?.categories.length ?? 0 },
+              { label: 'სულ შეკვეთები', value: analytics?.categories.reduce((s, c) => s + c.count, 0) ?? 0 },
+              { label: 'სულ შემოსავალი', value: `₾${((analytics?.categories.reduce((s, c) => s + c.revenue, 0) ?? 0) / 1000).toFixed(0)}k` },
             ].map((kpi) => (
               <Card key={kpi.label} className="border-border bg-card">
                 <CardContent className="p-5">
@@ -269,7 +391,6 @@ export default function ReportsPage() {
               </Card>
             ))}
           </div>
-
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">კატეგორიების ანგარიში</CardTitle>
@@ -280,22 +401,28 @@ export default function ReportsPage() {
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
                       <TableHead className="pl-6 text-xs">კატეგორია</TableHead>
-                      <TableHead className="text-xs">პროდუქტები</TableHead>
-                      <TableHead className="text-xs">შემოსავალი</TableHead>
-                      <TableHead className="pr-6 text-xs">ზრდა</TableHead>
+                      <TableHead className="text-xs">შეკვეთები</TableHead>
+                      <TableHead className="pr-6 text-xs">შემოსავალი</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {CATEGORY_STATS.map((cat) => (
-                      <TableRow key={cat.name} className="border-border">
-                        <TableCell className="pl-6 text-sm font-medium text-foreground">{cat.name}</TableCell>
-                        <TableCell className="text-sm text-foreground">{cat.products}</TableCell>
-                        <TableCell className="text-sm font-semibold text-foreground">
-                          ₾{cat.revenue.toLocaleString()}
+                    {(analytics?.categories ?? []).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
+                          მონაცემები არ არის
                         </TableCell>
-                        <TableCell className="pr-6 text-sm font-medium text-green-600">{cat.growth}</TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      (analytics?.categories ?? []).map((cat) => (
+                        <TableRow key={cat.name} className="border-border">
+                          <TableCell className="pl-6 text-sm font-medium text-foreground">{cat.name}</TableCell>
+                          <TableCell className="text-sm text-foreground">{cat.count}</TableCell>
+                          <TableCell className="pr-6 text-sm font-semibold text-foreground">
+                            ₾{cat.revenue.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>

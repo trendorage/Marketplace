@@ -36,3 +36,12 @@ export async function getSellersService(
   const items = await sellerRepository.findAll(params);
   return { data: { sellers: items.map(docToSeller) }, status: 200 };
 }
+
+export async function updateSellerService(
+  id: string,
+  data: { status?: 'active' | 'pending' | 'suspended'; commissionRate?: number; storeName?: string }
+): Promise<ServiceResult<{ updated: boolean }>> {
+  const updated = await sellerRepository.updateById(id, data);
+  if (!updated) return { data: { error: 'NOT_FOUND' }, status: 404 };
+  return { data: { updated: true }, status: 200 };
+}

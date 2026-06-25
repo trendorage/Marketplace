@@ -45,6 +45,8 @@ function serializeDoc(doc: Record<string, unknown>): Record<string, unknown> {
   )) as Record<string, unknown>;
 }
 
+const COLLECTION_RE = /^[a-zA-Z0-9_-]+$/;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ collection: string }> }
@@ -54,6 +56,9 @@ export async function GET(
     if (authError) return authError;
 
     const { collection } = await params;
+    if (!COLLECTION_RE.test(collection)) {
+      return NextResponse.json({ error: 'INVALID_COLLECTION' }, { status: 400 });
+    }
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '10')));
@@ -97,6 +102,9 @@ export async function POST(
     if (authError) return authError;
 
     const { collection } = await params;
+    if (!COLLECTION_RE.test(collection)) {
+      return NextResponse.json({ error: 'INVALID_COLLECTION' }, { status: 400 });
+    }
     const body = await req.json() as Record<string, unknown>;
 
     await mongo.connect();

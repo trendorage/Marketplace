@@ -23,6 +23,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await userRepository.findByEmail(credentials.email as string);
         if (!user) return null;
+        if (user.status === 'banned') return null;
 
         const passwordHash = hashPassword(credentials.password as string);
         if (user.passwordHash !== passwordHash) return null;
@@ -43,6 +44,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (account?.provider !== 'google' || !user.email || !user.name) {
         return true;
       }
+
+      const existing = await userRepository.findByEmail(user.email);
+      if (existing?.status === 'banned') return false;
 
       await upsertOAuthUserService({
         email: user.email,
@@ -66,10 +70,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.email) {
         const dbUser = await userRepository.findByEmail(token.email as string);
         if (dbUser) {
+          if (dbUser.status === 'banned') {
+            token.role = 'user';
+            token.banned = true;
+            return token;
+          }
           token.id = dbUser._id.toString();
           token.name = dbUser.name;
           token.avatar = dbUser.avatar ?? (token.avatar as string | null | undefined);
           token.role = (dbUser.role as 'admin' | 'user') ?? 'user';
+          token.banned = false;
         } else {
           token.role = 'user';
         }
