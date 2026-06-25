@@ -40,7 +40,7 @@ export const ProductCard = ({ product }: ProductCardProps) => {
       )}
 
       {/* Image */}
-      <Link href={`/products/${product.id}`} className="block">
+      <Link href={`/products`} className="block">
         <div className="relative aspect-square w-full overflow-hidden bg-muted">
           <ShoppingBag className="absolute inset-0 m-auto size-10 text-muted-foreground/20
             transition-transform duration-300 group-hover:scale-110 sm:size-14" />
@@ -57,7 +57,7 @@ export const ProductCard = ({ product }: ProductCardProps) => {
       {/* Info */}
       <div className="flex flex-1 flex-col gap-1.5 p-2.5 sm:gap-2 sm:p-3">
         <Link
-          href={`/products/${product.id}`}
+          href={`/products`}
           className="line-clamp-2 text-xs font-medium text-foreground transition-colors hover:text-primary sm:text-sm"
         >
           {product.name}
@@ -81,7 +81,9 @@ export const ProductCard = ({ product }: ProductCardProps) => {
         <div className="mt-auto flex flex-col gap-1 pt-1">
           <Button
             size="sm"
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            disabled
+            title="კალათა მალე იქნება ხელმისაწვდომი"
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             <ShoppingCart className="size-3.5 mr-1.5" />
             კალათაში

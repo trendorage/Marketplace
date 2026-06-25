@@ -53,34 +53,15 @@ export default function ThemePage() {
   }, [fetchTheme]);
 
   useEffect(() => {
-    if (loading) return;
-    const root = document.documentElement;
-    const colorKeys: ColorKey[] = [
-      'primary',
-      'primaryForeground',
-      'secondary',
-      'secondaryForeground',
-      'background',
-      'foreground',
-      'accent',
-      'accentForeground',
-    ];
-    colorKeys.forEach((key) => {
-      const cssVar = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-      root.style.setProperty(cssVar, colors[key]);
-    });
-    root.style.setProperty('--font-sans', `'${typography.fontFamily}', sans-serif`);
-    root.style.fontSize = `${typography.fontSize}px`;
-
-    return () => {
-      colorKeys.forEach((key) => {
-        const cssVar = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-        root.style.removeProperty(cssVar);
-      });
-      root.style.removeProperty('--font-sans');
-      root.style.fontSize = '';
-    };
-  }, [colors, typography, loading]);
+    if (!typography.fontFamily || typography.fontFamily === 'Inter') return;
+    const id = `font-${typography.fontFamily.replace(/\s+/g, '-').toLowerCase()}`;
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(typography.fontFamily)}:wght@400;500;600;700&display=swap`;
+    document.head.appendChild(link);
+  }, [typography.fontFamily]);
 
   const handleColorChange = (key: ColorKey, value: string) => {
     setColors((prev) => ({ ...prev, [key]: value }));
@@ -109,9 +90,20 @@ export default function ThemePage() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setColors(DEFAULT_THEME_CONFIG.colors);
     setTypography(DEFAULT_THEME_CONFIG.typography);
+    setSaving(true);
+    setError(null);
+    try {
+      await http.patch<ThemeConfig>('/theme', DEFAULT_THEME_CONFIG);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setError('ნაგულისხმევი პარამეტრების შენახვა ვერ მოხდა.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const colorPairs: Array<[ColorKey, ColorKey]> = [
@@ -122,21 +114,7 @@ export default function ThemePage() {
   ];
 
   return (
-    <>
-      <style>{`
-        :root {
-          --preview-primary: ${colors.primary};
-          --preview-primary-fg: ${colors.primaryForeground};
-          --preview-secondary: ${colors.secondary};
-          --preview-secondary-fg: ${colors.secondaryForeground};
-          --preview-background: ${colors.background};
-          --preview-foreground: ${colors.foreground};
-          --preview-accent: ${colors.accent};
-          --preview-accent-fg: ${colors.accentForeground};
-        }
-      `}</style>
-
-      <div className="space-y-5">
+    <div className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-foreground">თიმის კასტომიზაცია</h2>
@@ -443,6 +421,5 @@ export default function ThemePage() {
           </div>
         )}
       </div>
-    </>
   );
 }

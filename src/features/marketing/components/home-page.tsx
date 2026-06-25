@@ -56,7 +56,7 @@ export const HomePage = () => {
               {QUICK_SEARCH_TAGS.map((tag) => (
                 <Link
                   key={tag}
-                  href={`/search?q=${tag}`}
+                  href={`/products`}
                   className={cn(
                     'shrink-0 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs',
                     'text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-primary'
@@ -77,19 +77,19 @@ export const HomePage = () => {
                 {
                   title: 'ახალი კოლექცია',
                   subtitle: 'მობილური ტელეფონები',
-                  href: '/category/mobile',
+                  href: '/products',
                   accent: 'border-primary/40',
                 },
                 {
                   title: 'Express მიწოდება',
                   subtitle: '1,5 საათში თბილისში',
-                  href: '/category/computers',
+                  href: '/products',
                   accent: 'border-white/20',
                 },
                 {
                   title: 'ფასდაკლებები',
                   subtitle: '50%-მდე ფასდაკლება',
-                  href: '/sale',
+                  href: '/products',
                   accent: 'border-primary/40',
                   mobileHide: true,
                 },
