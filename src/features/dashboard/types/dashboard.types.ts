@@ -17,7 +17,8 @@ export type RevenuePoint = {
   commission: number;
 };
 
-export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled' | 'refunded';
+export type { OrderStatus } from '@/features/orders/types/order.types';
+import type { OrderStatus } from '@/features/orders/types/order.types';
 
 export type OrderItem = {
   id: string;
