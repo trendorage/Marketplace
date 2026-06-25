@@ -49,20 +49,31 @@ export async function POST(req: NextRequest) {
       ...body.messages.slice(-10),
     ];
 
-    const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'nex-agi/nex-n2-pro:free',
-        stream: true,
-        messages,
-      }),
-    });
+    const MODELS = [
+      'openai/gpt-oss-20b:free',
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'openai/gpt-oss-120b:free',
+    ];
 
-    if (!upstream.ok || !upstream.body) {
+    let upstream: Response | null = null;
+    for (const model of MODELS) {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://trendora.ge',
+          'X-Title': 'Trendora Marketplace',
+        },
+        body: JSON.stringify({ model, stream: true, messages }),
+      });
+      if (res.ok && res.body) {
+        upstream = res;
+        break;
+      }
+    }
+
+    if (!upstream || !upstream.body) {
       return NextResponse.json({ error: 'UPSTREAM_ERROR' }, { status: 502 });
     }
 
